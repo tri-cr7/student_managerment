@@ -47,12 +47,12 @@ def register_process():
         err_msg = 'Passwords do not match!'
     else:
         try:
-            # Copy form data and handle file upload for avatar
+
             data = request.form.copy()
             if 'confirm' in data:
                 del data['confirm']
 
-            # Calls your teacher's create_user method in dao.py
+
             dao.create_user(**data)
             return redirect(url_for('login_view'))
         except Exception as ex:
@@ -74,4 +74,5 @@ def get_user(user_id):
 
 if __name__ == '__main__':
     with app.app_context():
+        from studentapp import admin
         app.run(debug=True)
