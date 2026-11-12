@@ -83,7 +83,7 @@ def lock_patch(uid):
         body = request.get_json(silent=True) or {}
         want_lock = body.get("is_locked", True)
         if str(want_lock).lower() in ("false", "0", "no", "off"):
-            u = user_service.unlock(uid)
+            u = user_service.unlock(uid, _actor())
             msg = "Đã mở khóa tài khoản thành công và đặt lại số lần nhập sai về 0."
         else:
             u = user_service.lock(uid, _actor())
@@ -110,7 +110,7 @@ def lock(uid):
 @role_required("ACADEMIC")
 def unlock(uid):
     try:
-        u = user_service.unlock(uid)
+        u = user_service.unlock(uid, _actor())
         return _ok(u.public_dict(), "Đã mở khoá.")
     except AppError as e:
         return _err(e)
@@ -121,7 +121,7 @@ def unlock(uid):
 def reset(uid):
     try:
         new_pw = (request.get_json(silent=True) or {}).get("new_password", "DoiMK@123")
-        u = user_service.reset_password(uid, new_pw)
+        u = user_service.reset_password(uid, new_pw, _actor())
         return _ok(u.public_dict(), "Đã reset mật khẩu.")
     except AppError as e:
         return _err(e)

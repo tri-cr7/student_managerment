@@ -1,6 +1,7 @@
 """SERVICE user — quản trị (chỉ ACADEMIC)."""
 import os
 
+from flask import request as freq
 from sqlalchemy.exc import IntegrityError
 
 from studentapp.extensions import db
@@ -15,6 +16,21 @@ from studentapp.exceptions import (
     PermissionDeniedError,
 )
 from studentapp.utils.validators import is_email, is_strong_password
+
+
+def _audit(actor_id, action, details=None):
+    """Ghi vết phân quyền SD17: user_id = người thực hiện, details = đối tượng bị tác động."""
+    try:
+        uid = int(actor_id) if actor_id is not None else None
+    except (TypeError, ValueError):
+        uid = None
+    try:
+        ip = freq.remote_addr if freq else None
+    except Exception:
+        ip = None
+    db.session.add(
+        AuditLog(user_id=uid, action=action, ip_address=ip, details=details or {})
+    )
 
 
 def _get(uid):
@@ -96,19 +112,29 @@ def lock(uid, actor_id=None):
     _ensure_can_touch_academic(u, actor_id, "khóa")
     _ensure_keep_last_academic(u)
     u.is_locked = True
+    _audit(
+        actor_id,
+        "LOCK_USER",
+        {"target_user_id": u.id, "username": u.username, "role": u.role.value},
+    )
     db.session.commit()
     return u
 
 
-def unlock(uid):
+def unlock(uid, actor_id=None):
     u = _get(uid)
     u.is_locked = False
     u.failed_attempts = 0
+    _audit(
+        actor_id,
+        "UNLOCK_USER",
+        {"target_user_id": u.id, "username": u.username, "role": u.role.value},
+    )
     db.session.commit()
     return u
 
 
-def reset_password(uid, new_password="DoiMK@123"):
+def reset_password(uid, new_password="DoiMK@123", actor_id=None):
     ok, msg = is_strong_password(new_password or "")
     if not ok:
         raise ValidationError(
@@ -119,7 +145,11 @@ def reset_password(uid, new_password="DoiMK@123"):
     u.failed_attempts = 0
     u.is_locked = False
     u.must_change_password = True
-    db.session.add(AuditLog(user_id=u.id, action="RESET_PASSWORD"))
+    _audit(
+        actor_id if actor_id is not None else u.id,
+        "RESET_PASSWORD",
+        {"target_user_id": u.id, "username": u.username, "role": u.role.value},
+    )
     db.session.commit()
     try:
         from studentapp.services import mail_service
@@ -138,6 +168,7 @@ def change_role(uid, role_raw, actor_id=None):
     except ValueError:
         raise ValidationError("Role không hợp lệ (STAFF/TEACHER/ACADEMIC).")
     u = _get(uid)
+    old_role = u.role.value if u.role else None
     if u.role != UserRoleEnum.ACADEMIC and role == UserRoleEnum.ACADEMIC:
         existing = User.query.filter_by(role=UserRoleEnum.ACADEMIC).count()
         if existing >= 1:
@@ -156,14 +187,29 @@ def change_role(uid, role_raw, actor_id=None):
                 "Hệ thống phải giữ ít nhất 1 tài khoản Giáo vụ/Admin đang hoạt động!"
             )
     u.role = role
+    if old_role != role.value:
+        _audit(
+            actor_id,
+            "CHANGE_ROLE",
+            {
+                "target_user_id": u.id,
+                "username": u.username,
+                "old_role": old_role,
+                "new_role": role.value,
+            },
+        )
     db.session.commit()
     return u
 
 
 def update_info(uid, payload: dict, actor_id=None):
     u = _get(uid)
+    changed = {}
     if payload.get("full_name"):
-        u.full_name = payload["full_name"].strip()
+        new_name = payload["full_name"].strip()
+        if new_name != (u.full_name or ""):
+            changed["full_name"] = {"old": u.full_name, "new": new_name}
+        u.full_name = new_name
     if payload.get("email"):
         email = payload["email"].strip()
         if not is_email(email):
@@ -171,16 +217,32 @@ def update_info(uid, payload: dict, actor_id=None):
         other = user_repository.get_by_email(email)
         if other and other.id != u.id:
             raise DuplicateError("Email đã tồn tại.")
+        if email != (u.email or ""):
+            changed["email"] = {"old": u.email, "new": email}
         u.email = email
     if payload.get("phone") is not None:
-        u.phone = (payload.get("phone") or "").strip() or None
+        new_phone = (payload.get("phone") or "").strip() or None
+        if new_phone != u.phone:
+            changed["phone"] = {"old": u.phone, "new": new_phone}
+        u.phone = new_phone
     if "is_active" in payload:
         want = bool(payload["is_active"])
         if u.is_active and not want:
             _ensure_not_self(uid, actor_id, "vô hiệu hóa")
             _ensure_can_touch_academic(u, actor_id, "vô hiệu hóa")
             _ensure_keep_last_academic(u)
+        if bool(u.is_active) != want:
+            changed["is_active"] = {"old": bool(u.is_active), "new": want}
         u.is_active = want
+    if changed:
+        action = "DISABLE_USER" if changed.get("is_active", {}).get("new") is False else (
+            "ENABLE_USER" if changed.get("is_active", {}).get("new") is True else "UPDATE_USER"
+        )
+        _audit(
+            actor_id,
+            action,
+            {"target_user_id": u.id, "username": u.username, "changed": changed},
+        )
     try:
         db.session.commit()
     except IntegrityError:

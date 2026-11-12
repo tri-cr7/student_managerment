@@ -42,26 +42,60 @@ class UserAdminView(_AcademicOnlyMixin, ModelView):
 
     @action("lock", "Lock", "Khoá các tài khoản đã chọn?")
     def action_lock(self, ids):
+        actor_id = getattr(current_user, "id", None)
+        targets = User.query.filter(User.id.in_(ids)).all()
         n = User.query.filter(User.id.in_(ids)).update(
             {User.is_locked: True}, synchronize_session=False
         )
+        for u in targets:
+            db.session.add(
+                AuditLog(
+                    user_id=actor_id,
+                    action="LOCK_USER",
+                    details={"target_user_id": u.id, "username": u.username,
+                             "role": u.role.value if u.role else None, "via": "flask_admin_bulk"},
+                )
+            )
         db.session.commit()
         flash(f"Đã khoá {n} tài khoản.", "success")
 
     @action("unlock", "Unlock", "Mở khoá + reset số lần sai?")
     def action_unlock(self, ids):
+        actor_id = getattr(current_user, "id", None)
+        targets = User.query.filter(User.id.in_(ids)).all()
         n = User.query.filter(User.id.in_(ids)).update(
             {User.is_locked: False, User.failed_attempts: 0}, synchronize_session=False
         )
+        for u in targets:
+            db.session.add(
+                AuditLog(
+                    user_id=actor_id,
+                    action="UNLOCK_USER",
+                    details={"target_user_id": u.id, "username": u.username,
+                             "role": u.role.value if u.role else None, "via": "flask_admin_bulk"},
+                )
+            )
         db.session.commit()
         flash(f"Đã mở {n} tài khoản.", "success")
 
     @action("reset_password", "Reset Password", "Reset mật khẩu các user đã chọn?")
     def action_reset_password(self, ids):
+        actor_id = getattr(current_user, "id", None)
         users = User.query.filter(User.id.in_(ids)).all()
         for u in users:
             temp = "Tmp@" + secrets.token_urlsafe(6)
             u.set_password(temp)
+            u.failed_attempts = 0
+            u.is_locked = False
+            u.must_change_password = True
+            db.session.add(
+                AuditLog(
+                    user_id=actor_id,
+                    action="RESET_PASSWORD",
+                    details={"target_user_id": u.id, "username": u.username,
+                             "role": u.role.value if u.role else None, "via": "flask_admin_bulk"},
+                )
+            )
             flash(f"MK tạm [{u.username}]: {temp}", "warning")
         db.session.commit()
         flash(f"Đã reset {len(users)} user.", "success")

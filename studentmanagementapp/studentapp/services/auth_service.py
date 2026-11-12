@@ -158,6 +158,15 @@ def login(payload: dict) -> dict:
         db.session.add(
             AuditLog(user_id=u.id, action="LOGIN_FAILED", ip_address=ip, details={"username": username})
         )
+        if locked_now:
+            db.session.add(
+                AuditLog(
+                    user_id=u.id,
+                    action="ACCOUNT_LOCKED",
+                    ip_address=ip,
+                    details={"username": username, "reason": "brute_force", "failed_attempts": u.failed_attempts},
+                )
+            )
         db.session.commit()
         if locked_now:
             raise LockedError(

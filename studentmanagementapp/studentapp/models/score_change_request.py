@@ -33,6 +33,7 @@ class ScoreChangeRequest(db.Model):
     attachment_type = db.Column(db.String(20), nullable=True)
     attachment_name = db.Column(db.String(255), nullable=True)
     approved_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    approval_note = db.Column(db.String(500), nullable=True)
     created_at = db.Column(
         db.TIMESTAMP, nullable=False, server_default=db.func.current_timestamp()
     )

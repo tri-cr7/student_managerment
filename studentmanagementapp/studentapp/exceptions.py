@@ -79,6 +79,14 @@ class InvalidSubmissionStatusError(AppError):
         self.current_status = current_status
 
 
+class DecisionsRequiredError(AppError):
+    """422 — Đơn lô thiếu decisions[] khi duyệt phúc khảo (SD19)."""
+
+    status_code = 422
+    error = "DECISIONS_REQUIRED"
+    message = "Đơn sửa điểm có nhiều ô, vui lòng gửi quyết định duyệt/từ chối cho từng ô!"
+
+
 class IncompleteScoresError(AppError):
     """422 — Còn ô điểm chưa nhập, không thể gửi duyệt (rule B1)."""
 
