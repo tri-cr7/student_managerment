@@ -83,7 +83,7 @@ Hệ thống thiết lập 3 Actor chuyên biệt cùng kế thừa từ Actor c
 Chịu trách nhiệm trực tiếp về tiếp nhận hồ sơ học sinh đầu vào, kiểm tra điều kiện độ tuổi theo quy định, lập danh sách lớp sinh hoạt theo các khối 10, 11, 12, điều chuyển lớp học khi cần thiết, cập nhật lý lịch, import danh sách từ Excel và tra cứu / in hồ sơ học sinh.
 
 ### 3.3 Giáo viên / Giảng viên (TEACHER — Actor con)
-Chịu trách nhiệm về chuyên môn giảng dạy, tra cứu danh sách học sinh các lớp phụ trách, điểm danh, nhập các cột điểm thành phần (15 phút, 1 tiết, thi cuối kỳ) theo đúng quy chế số cột, xem và xuất bảng điểm trung bình. Khi bảng điểm đã bị khóa, giáo viên tạo đơn yêu cầu sửa điểm gửi Giáo vụ.
+Chịu trách nhiệm về chuyên môn giảng dạy: tra cứu danh sách lớp phụ trách, nhập các cột điểm thành phần (15 phút, 1 tiết, thi cuối kỳ) cho học sinh của một lớp theo đúng quy chế số cột vào **bảng điểm tạm**, gửi bảng điểm lên Giáo vụ duyệt để **chốt thành điểm chính thức**, xem và xuất bảng điểm trung bình lớp theo năm học. Khi bảng điểm đã được chốt, giáo viên tạo đơn yêu cầu sửa điểm gửi Giáo vụ.
 
 ### 3.4 Giáo vụ / Quản trị viên (ACADEMIC / ADMIN — Actor con)
 Người quản trị cao nhất của hệ thống học vụ: quản lý danh mục môn học, phân công giảng dạy, cấp phát tài khoản và phân quyền người dùng (gửi thông tin qua Mail Server), mở/khóa bảng điểm của các môn học, phê duyệt yêu cầu sửa điểm của giáo viên, xem báo cáo tổng kết môn học kèm biểu đồ Chart.js, xem nhật ký hệ thống và thay đổi các quy định hệ thống (`system_rules`).
@@ -108,20 +108,151 @@ Mỗi Use Case trên sơ đồ Use Case Astah được chuẩn hóa 1:1 tương 
 | 8 | `Tra cứu hồ sơ học sinh` | `SD08_TraCuuVaInHoSoHocSinh` | `NhanVien` | Tìm kiếm đa tiêu chí, tích hợp điểm mở rộng `<<extend>> In hồ sơ học sinh` xuất định dạng in ấn/PDF. |
 | **III** | **Phân hệ Giáo viên (Giảng dạy & Điểm số)** | | | |
 | 9 | `Tra cứu danh sách lớp phụ trách` | `SD09_TraCuuLopPhuTrach` | `GiaoVien` | Truy vấn các lớp học phần/lớp bộ môn được phân công giảng dạy trong học kỳ. |
-| 10 | `Điểm danh học sinh` | `SD10_DiemDanhHocSinh` | `GiaoVien` | Ghi nhận trạng thái chuyên cần (Có mặt, Vắng phép, Vắng không phép) theo từng buổi học. |
-| 11 | `Nhập điểm môn học` | `SD11_NhapDiemMonHoc` | `GiaoVien` | **Yêu cầu 3:** 15 phút (1-5 cột), 1 tiết (1-3 cột), 1 điểm thi; chỉ khi bảng điểm **MỞ** (`is_locked = false`, khóa → SD14); `<<include>> Tính điểm trung bình môn`. |
-| 12 | `Xem bảng điểm trung bình lớp` | `SD12_XemBangDiemTrungBinhLop` | `GiaoVien` | **Yêu cầu 3:** Tổng hợp bảng điểm học kỳ và cả năm học (HK1, HK2); `<<include>> Tính điểm trung bình môn`. |
-| 13 | `Xuất bảng điểm trung bình lớp` | `SD13_XuatBangDiemTrungBinhLop` | `GiaoVien` | **Yêu cầu 3:** Xuất dữ liệu bảng điểm lớp ra file báo cáo chuẩn Excel/PDF theo mẫu quy định. |
-| 14 | `Sửa điểm học sinh` | `SD14_SuaDiemHocSinh` | `GiaoVien` | **Yêu cầu 3:** Mở bảng điểm thì cho sửa; Đã khóa thì gọi `<<extend>> Gửi yêu cầu chỉnh điểm`. |
+| 10 | ~~`Điểm danh học sinh`~~ | ~~`SD10_DiemDanhHocSinh`~~ | ~~`GiaoVien`~~ | ~~*Đã loại bỏ khỏi phạm vi đề bài (Yêu cầu 3 chỉ quy định nhập điểm & xuất điểm trung bình lớp) — xem §4.1*~~ |
+| 11 | `Nhập điểm môn học` | `SD11_NhapDiemMonHoc` | `GiaoVien` | **Yêu cầu 3:** 15 phút (1-5 cột), 1 tiết (1-3 cột), 1 điểm thi; chỉ khi bảng điểm **MỞ** (`is_locked = false`, chốt → SD25) & **không có đơn gửi duyệt `PENDING`** (đang có → GV phải Hủy đơn, xem SD23); ghi vào **bảng điểm tạm** (`is_draft = TRUE`); `<<include>> Tính điểm trung bình môn`. **Quy ước:** ô `NULL` = chưa nhập, ô `0.00` = đã nhập (vắng / thi 0 điểm, **vẫn tính vào ĐTB**). Ràng buộc Mức 1 (điểm 0–10, số cột theo `system_rules`, không trùng HS) → chặn ngay ở bước Lưu — xem §4.2. |
+| 12 | `Xem bảng điểm trung bình lớp` | `SD12_XemBangDiemTrungBinhLop` | `GiaoVien` | **Yêu cầu 3:** Xem bảng điểm trung bình lớp theo năm học theo biểu mẫu **BẢNG ĐIỂM TRUNG BÌNH LỚP** (chỉ đọc điểm chính thức `is_draft = FALSE`); `<<include>> Tính điểm trung bình môn`. |
+| 13 | `Xuất điểm trung bình lớp` | `SD13_XuatBangDiemTrungBinhLop` | `GiaoVien` | **Yêu cầu 3:** Xuất điểm trung bình lớp theo năm học ra file Excel/PDF đúng biểu mẫu **BẢNG ĐIỂM TRUNG BÌNH LỚP**. |
+| 14 | `Sửa điểm học sinh` | `SD14_SuaDiemHocSinh` | `GiaoVien` | **Yêu cầu 3:** Sửa 1 ô điểm khi bảng điểm **đang MỞ** → ghi vào **bảng điểm tạm** (`is_draft = TRUE`); `<<include>> Tính điểm trung bình môn`. **Chặn** nếu bảng điểm đã CHỐT (→ SD25) hoặc đang có đơn gửi duyệt `PENDING` (**423 `SCORE_SUBMISSION_PENDING`** → GV phải Hủy đơn trước). |
+| 23 | `Gửi bảng điểm lên duyệt` | `SD23_GuiBangDiemLenDuyet` | `GiaoVien` | **Bổ trợ cho SD11:** Sau khi nhập xong bảng điểm tạm, GV bấm "Gửi duyệt" → **kiểm tra không còn ô điểm `NULL` (chưa nhập)** → nếu còn thì chặn **422 `INCOMPLETE_SCORES`** kèm danh sách HS & cột bị thiếu → tạo bản ghi `score_submissions` (trạng thái `PENDING`) cho Giáo vụ. **Kèm `<<extend>> Hủy đơn gửi duyệt`** (`PUT /score-submissions/{id}/cancel`) → GV tự hủy để sửa lại bảng điểm tạm rồi gửi lại. Ràng buộc Mức 2 — xem §4.2. |
+| 25 | `Gửi yêu cầu chỉnh điểm` | `SD25_GuiYeuCauChinhDiem` | `GiaoVien` | **Phúc khảo (bảng điểm đã CHỐT):** GV điền **biểu mẫu có cấu trúc** (Lớp → Học sinh → Môn học → Cột điểm), điểm hiện tại hiển thị **chỉ đọc**, nhập **điểm đề xuất** + **lý do (bắt buộc)**, **đính kèm ảnh/PDF tùy chọn**; hỗ trợ **đơn lẻ** & **đơn lô** (nhiều ô điểm). Server đối chiếu `old_value` (lệch → **409 `SCORE_VALUE_CONFLICT`**) → tạo đơn chờ **SD19** (Giáo vụ duyệt). |
 | **IV** | **Phân hệ Giáo vụ / Quản trị (Học vụ & Báo cáo)** | | | |
 | 15 | `Xem nhật ký hệ thống` | `SD15_XemNhatKyHeThong` | `GiaoVu` | Audit log: Tra cứu lịch sử truy cập, sửa đổi điểm số và thay đổi quy định. |
 | 16 | `Phân công giảng dạy` | `SD16_PhanCongGiangDay` | `GiaoVu` | Gán giáo viên giảng dạy bộ môn cho các lớp học theo từng năm học/học kỳ. |
 | 17 | `Quản lý tài khoản và phân quyền` | `SD17_QuanLyTaiKhoanVaPhanQuyen` | `GiaoVu` | Cấp tài khoản (`STAFF`, `TEACHER`, `ACADEMIC`), băm BCrypt, tích hợp gửi mail kích hoạt qua `MailServer`; chốt an toàn: không tự khóa chính mình (400), giữ đúng 1 ACADEMIC duy nhất: xin thêm ACADEMIC → 422; không tự khóa chính mình (400); admin gốc bất khả xâm phạm qua API, admin thường không được động vào admin khác (403). |
-| 18 | `Khoá mở bảng điểm` | `SD18_KhoaMoBangDiem` | `GiaoVu` | Đóng/mở trạng thái cho phép nhập điểm của một môn học/lớp học. |
-| 19 | `Phê duyệt yêu cầu chỉnh điểm` | `SD19_PheDuyetYeuCauChinhDiem` | `GiaoVu` | Duyệt hoặc từ chối các đơn xin sửa điểm của Giáo viên; mở khóa tạm thời cho học sinh được duyệt. |
+| 18 | `Khoá mở bảng điểm` | `SD18_KhoaMoBangDiem` | `GiaoVu` | Mở/Khoá bảng điểm của một môn học/lớp học. Cờ `is_locked` nay mang ý nghĩa **"đã chốt"** — Giáo vụ có thể mở lại để GV sửa & gửi duyệt lại (xem §4.1). |
+| 19 | `Phê duyệt yêu cầu chỉnh điểm` | `SD19_PheDuyetYeuCauChinhDiem` | `GiaoVu` | Duyệt hoặc từ chối các đơn xin sửa điểm của Giáo viên — **duyệt từng ô** (đơn lô có thể duyệt 15/20 ô, từ chối 5 ô); **1 transaction ACID** ghi điểm mới vào bảng điểm chính thức + tính lại ĐTB + ghi `audit_logs` + enqueue `email_outbox` → **gửi mail thông báo tự động** cho GV. |
 | 20 | `Xem báo cáo thống kê` | `SD20_XemBaoCaoThongKe` | `GiaoVu` | **Yêu cầu 4:** Điểm đạt $\ge 5.0$, tính số lượng đạt & tỷ lệ %; `<<include>> Vẽ biểu đồ báo cáo` (Chart.js). |
 | 21 | `Thay đổi quy định` | `SD21_ThayDoiQuyDinh` | `GiaoVu` | **Yêu cầu 5:** Đổi quy chế (`system_rules`); validate logic: `MIN_AGE < MAX_AGE`, `MAX_CLASS_SIZE > 0`, `MIN_COL ≤ MAX_COL`, `0 ≤ PASSING_SCORE ≤ 10`, `MAX_LOGIN_ATTEMPTS > 0`. |
 | 22 | `Quản lý danh mục môn học` | `SD22_QuanLyDanhMucMonHoc` | `GiaoVu` | **Yêu cầu 5:** Quản lý môn học các khối lớp (Thêm, Xóa, Cập nhật, Tìm kiếm môn học). |
+| 24 | `Duyệt & chốt bảng điểm` | `SD24_DuyetVaChotBangDiem` | `GiaoVu` | **Bổ trợ:** Giáo vụ xem bảng điểm chờ duyệt → **duyệt** (`is_draft = FALSE` + `is_locked = TRUE`) hoặc **từ chối** (giữ bản nháp cho GV sửa lại). |
+
+---
+
+## 4.1 Phạm vi áp dụng cho Phân hệ Giáo viên (đối chiếu Yêu cầu 3 của đề bài)
+
+**Bảng chiếu Use Case ↔ Biểu mẫu / Quy định áp dụng:**
+
+| SD | Use Case | Biểu mẫu / Quy định áp dụng | Ghi chú |
+|:---:|---|---|---|
+| **SD09** | `Tra cứu danh sách lớp phụ trách` | — | **Bổ trợ**: điều kiện tiên quyết để GV biết lớp/môn/kỳ nào được nhập điểm (nguồn: `teaching_assignments`) |
+| **SD11** | `Nhập điểm môn học` | **BẢNG ĐIỂM MÔN HỌC** — STT, Họ tên, Điểm 15' (1–5 cột), Điểm 1 tiết (1–3 cột), Điểm thi (1 cột) | **Trọng tâm Yêu cầu 3** — ghi vào bảng điểm tạm |
+| **SD12** | `Xem bảng điểm trung bình lớp` | **BẢNG ĐIỂM TRUNG BÌNH LỚP** — Năm học, STT, Họ tên, Lớp, Điểm TB HK1, Điểm TB HK2 | **Trọng tâm Yêu cầu 3** |
+| **SD13** | `Xuất điểm trung bình lớp` | **BẢNG ĐIỂM TRUNG BÌNH LỚP** (xuất Excel/PDF) | **Trọng tâm Yêu cầu 3** |
+| **SD14** | `Sửa điểm học sinh` | Bảng điểm **MỞ** → sửa trực tiếp (vào bảng tạm) | **Bổ trợ** — sửa nháp, chỉ khi bảng điểm đang mở & không có đơn `PENDING` (đi kèm SD11, SD23, SD25) |
+| **SD25** | `Gửi yêu cầu chỉnh điểm` | Bảng điểm **đã CHỐT** → biểu mẫu có cấu trúc + lý do (bắt buộc) + file đính kèm (tùy chọn) | **Bổ trợ** — cơ chế phúc khảo sau khi chốt (đi kèm SD19) |
+| **SD23** | `Gửi bảng điểm lên duyệt` | Bảng điểm tạm (`scores.is_draft = TRUE`) — **không ô nào được để trống** | **Bổ trợ cho SD11** — điều kiện để điểm tạm trở thành điểm chính thức (đi kèm SD24). Ràng buộc "không được bỏ trống" — xem §4.2. Kèm `<<extend>> Hủy đơn gửi duyệt` |
+
+**Endpoint hỗ trợ (không tách use case riêng — thao tác read-only):**
+* `GET /score-submissions/my` → Giáo viên theo dõi trạng thái các bảng điểm mình đã gửi duyệt (`PENDING` / `APPROVED` / `REJECTED` / `CANCELLED`).
+* `GET /score-requests/my` → Giáo viên theo dõi các đơn phúc khảo mình đã gửi.
+* `GET /scores/assignment/{assignmentId}?draft=true` → Giáo viên xem lại bảng điểm tạm để soạn tiếp.
+
+**Luồng chốt điểm đầy đủ (Giáo viên → Giáo vụ):**
+```
+GV nhập điểm (SD11)          → POST /scores/batch       → ghi vào BẢNG ĐIỂM TẠM (is_draft = TRUE), vẫn tính ĐTB để GV tự kiểm tra
+GV bấm "Gửi duyệt" (SD23)   → POST /score-submissions  → tạo bản ghi score_submissions (PENDING) cho Giáo vụ
+GV đổi ý (SD23)             → PUT .../cancel           → status = CANCELLED, giữ nguyên is_draft = TRUE → GV sửa lại được rồi gửi duyệt lại
+Giáo vụ xem & duyệt (SD24)  → PUT .../approve          → is_draft = FALSE  +  teaching_assignments.is_locked = TRUE  (cùng 1 transaction ACID)
+                                                                    ↓
+                                                          ĐIỂM CHÍNH THỨC — báo cáo & xuất file mới đọc được điểm này
+Giáo vụ từ chối (SD24)      → PUT .../reject           → giữ nguyên is_draft = TRUE, GV sửa tiếp rồi gửi lại
+```
+
+> **Vòng đời trạng thái đơn gửi duyệt:** `PENDING` → (`CANCELLED` do GV hủy | `REJECTED` do Giáo vụ từ chối | `APPROVED` do Giáo vụ duyệt).
+> * Đang `PENDING` → GV **không sửa được** bảng điểm tạm (**423 `SCORE_SUBMISSION_PENDING`**) → phải **Hủy** trước.
+> * Đã `APPROVED` → bảng điểm **đã khóa** → GV muốn sửa phải gửi **đơn phúc khảo** (SD25 → SD19).
+
+**Ý nghĩa mới của cờ `teaching_assignments.is_locked`:**
+* `is_locked = FALSE` → Bảng điểm **đang mở**: GV nhập điểm vào **bảng điểm tạm** và sửa thoải mái, **không cần xin quyền**.
+* `is_locked = TRUE` → Bảng điểm **đã chốt**: điểm chính thức (`is_draft = FALSE`). GV **không** sửa trực tiếp nữa → phải gửi đơn phúc khảo qua `POST /score-requests` (bảng `score_change_requests`).
+
+**Sau khi bảng điểm đã chốt**, muốn sửa điểm → GV dùng luồng phúc khảo **SD25** (`POST /score-requests` → SD19 Giáo vụ duyệt). Bảng `score_change_requests` giữ nguyên vai trò, không thay đổi.
+
+### 4.2 Ràng buộc nhập điểm & điều kiện trước khi gửi duyệt
+
+#### 🎯 Quy ước giá trị ô điểm — "NULL = chưa nhập, 0 = đã nhập" (đã chốt)
+
+| Trạng thái ô | Giá trị DB | Tính vào ĐTB | Ý nghĩa nghiệp vụ |
+|---|---|---|---|
+| **Chưa nhập** | `NULL` (ô để trống trên form) | ❌ Không tính | GV chưa chấm ô này — **lỗi GV**, chặn bước "Gửi duyệt" |
+| **Vắng** | `0.00` | ✅ Có tính | HS vắng kiểm tra → quy về **0 điểm** |
+| **Thi = 0 điểm** | `0.00` | ✅ Có tính | HS có dự thi nhưng làm sai hết → **0 điểm** |
+| **Đã chấm** | `0.00` – `10.00` | ✅ Có tính | Điểm thực tế |
+
+* **Không** dùng giá trị đặc biệt (`-1`) và **không** cần cờ `is_absent` → đơn giản, dễ giải thích khi bảo vệ đồ án.
+* Ô `NULL` **loại khỏi cả tử số & mẫu số** của ĐTB; ô `0.00` **vẫn được tính** → HS vắng bị trừ điểm đúng như thực tế.
+* **Công thức DUY NHẤT (dùng ở mọi nơi):** mẫu số = **số ô CÓ GIÁ TRỊ** (× trọng số 1 / 2 / 3), **KHÔNG** dùng "số cột theo quy chế" — nếu dùng số cột, khi GV mới chấm dở (2/5 cột) ĐTB sẽ nhảy giữa các lần lưu.
+* **Partial update khi lưu:** ô gửi lên với `null` → **giữ nguyên giá trị trong DB** (không xoá điểm đã chấm). Xoá điểm có chủ đích → `PUT /scores/{id}` với `clear: true` (có audit log).
+* Giao diện: mỗi ô có checkbox **"Vắng"** → tự điền `0` (cách nhập nhanh cho GV, **không** làm thay đổi giá trị).
+
+#### Ràng buộc Mức 1 — chặn ở bước "Lưu" (SD11)
+
+> Ràng buộc **cấu trúc dữ liệu** → chặn ngay, vì lưu sai thì bảng điểm tạm cũng hỏng.
+
+| # | Ràng buộc | Kiểm tra | Mã lỗi |
+|---|---|---|---|
+| A1 | Điểm nằm trong khoảng $[0.0, 10.0]$ | Mọi ô có giá trị | `422 INVALID_SCORE_RANGE` |
+| A2 | Số cột điểm 15' trong `[MIN_COL_15M, MAX_COL_15M]` | `system_rules` | `422 INVALID_COLUMN_COUNT` |
+| A3 | Số cột điểm 1 tiết trong `[MIN_COL_45M, MAX_COL_45M]` | `system_rules` | `422 INVALID_COLUMN_COUNT` |
+| A4 | Số cột điểm thi = `NUM_COL_FINAL` (1) | `system_rules` | `422 INVALID_COLUMN_COUNT` |
+| A5 | Không trùng `student_id` trong 1 request | Set uniqueness | `422 DUPLICATE_STUDENT_IN_BATCH` |
+| A6 | `student_id` thuộc lớp của assignment | `class_enrollments` | `422 STUDENT_NOT_IN_ASSIGNMENT` |
+| A7 | GV là người phụ trách assignment | `assignment.teacher_id` | `403 FORBIDDEN` |
+| A8 | Bảng điểm đang mở | `is_locked == false` | `423 SCORE_TABLE_LOCKED` |
+| A9 | Ô chưa nhập (`NULL`) | **Được phép** ở bước này | — |
+| A10 | Không có đơn gửi duyệt đang `PENDING` cho assignment | `score_submissions.status = 'PENDING'` | `423 SCORE_SUBMISSION_PENDING` (GV phải **Hủy** đơn trước rồi mới sửa được) |
+| A11 | GV là người phụ trách **đúng** assignment chứa dòng điểm | `teaching_assignments.teacher_id` (khớp `scores.assignment_id`) | `403 FORBIDDEN` (chống GV sửa điểm lớp khác) |
+
+#### Ràng buộc Mức 2 — chặn ở bước "Gửi duyệt" (SD23)
+
+> Ràng buộc **nghiệp vụ** → GV có thể lưu dở để soạn tiếp, nhưng **không được gửi duyệt** khi dữ liệu chưa hoàn chỉnh.
+
+| # | Ràng buộc | Kiểm tra | Mã lỗi |
+|---|---|---|---|
+| B1 | **Mọi ô phải được điền** — không ô nào được để trống (`NULL`) | Quét toàn bộ `scores` của assignment | `422 INCOMPLETE_SCORES` |
+| B2 | Phải có ít nhất 1 học sinh có điểm | Đếm ô có giá trị | `422 NO_SCORES_TO_SUBMIT` |
+| B3 | Chưa có bản ghi `PENDING` cho cùng `assignment_id` | `score_submissions` | `409 DUPLICATE_PENDING_SUBMISSION` |
+| B4 | Bảng điểm đang mở | `is_locked == false` | `423 SCORE_TABLE_LOCKED` |
+| B5 | GV là người phụ trách assignment | `assignment.teacher_id` | `403 FORBIDDEN` |
+| B6 | Chưa có đơn gửi duyệt `PENDING` cho assignment (để tránh gửi trùng) | `score_submissions.status = 'PENDING'` | `409 DUPLICATE_PENDING_SUBMISSION` (GV phải **Hủy** đơn cũ trước) |
+
+> **B1 là ràng buộc "không được bỏ trống"** — GV có thể **lưu dở** nhiều lần để soạn tiếp, nhưng **không thể gửi duyệt** khi còn ô trống.
+
+> **A11 — "Chặn GV sửa điểm lớp khác":** mọi thao tác ghi (`POST /scores/batch`, `PUT /scores/{id}`) phải kiểm tra `scores.assignment_id → teaching_assignments.teacher_id = user.id` hiện tại. GV phụ trách 3 lớp → chỉ sửa được điểm của 3 lớp đó, **không** sửa được điểm lớp của GV khác dù có biết `scores.id`.
+>
+> **A10 — "Đang có đơn PENDING thì không sửa được":** Trong lúc bảng điểm đang chờ Giáo vụ duyệt, GV **không được** sửa ô điểm — vì nếu sửa, Giáo vụ sẽ duyệt một bản điểm **không còn khớp với những gì GV đã gửi**. Muốn sửa → GV bấm **"Hủy đơn gửi duyệt"** (`PUT /score-submissions/{id}/cancel`) → đơn chuyển `CANCELLED`, bảng điểm vẫn `is_draft = TRUE` → GV sửa thoải mái rồi gửi duyệt lại.
+> Server **quét toàn bộ** bảng điểm của lớp môn học (không chỉ dòng vừa lưu) → không thể lách bằng cách gửi từng phần.
+
+**Quy tắc bắt buộc cho luồng phúc khảo (SD19 — tránh bug điểm chính thức bị "hạ" về bản nháp):**
+* Khi Giáo vụ **duyệt** đơn phúc khảo → điểm mới ghi thẳng vào **điểm chính thức**, **giữ nguyên `scores.is_draft = FALSE`**; tuyệt đối **không** ghi vào bảng điểm tạm.
+* Đồng thời **không** thay đổi `teaching_assignments.is_locked` → bảng điểm vẫn **ĐÃ CHỐT** sau khi phúc khảo được duyệt.
+* Tính lại `average_score` & `is_passed` trong **cùng transaction** (ACID) với `UPDATE scores`.
+* Khi Giáo vụ **từ chối** → không thay đổi bất kỳ dữ liệu điểm nào.
+
+**Biểu mẫu gửi yêu cầu sửa điểm (SD25 — bắt buộc):**
+* GV chọn theo thứ tự **Lớp → Học sinh → Môn học → Cột điểm** (15 phút / 1 tiết / cuối kỳ).
+* Hệ thống **tự động hiển thị Điểm hiện tại ở chế độ chỉ đọc** — GV **không** sửa trực tiếp được điểm đã chốt (đảm bảo trung thực); mọi thay đổi phải qua đơn kèm lý do.
+* `reason` (lý do) là **BẮT BUỘC** — GV chọn trong danh mục (gõ nhầm số, chấm sót ý bài tự luận, phúc khảo, chấm lại bài giấy…) hoặc tự nhập.
+* File đính kèm (ảnh bài đã chấm lại / biên bản phúc khảo) **LUÔN TÙY CHỌN** — hệ thống **không** bắt buộc theo loại lý do. Với lý do đơn giản như "gõ nhầm 7.5 thành 5.7" thì không cần đính kèm.
+* Hỗ trợ **2 mức**: **đơn lẻ** (1 ô điểm) và **đơn lô** (nhiều ô điểm của nhiều học sinh) — cùng 1 luồng nghiệp vụ, khác nhau ở bảng chi tiết `score_change_details`.
+
+**Duyệt từng ô & Outbox Pattern (điểm nhấn Transaction & Data Consistency):**
+* Trạng thái thật của mỗi ô nằm ở `score_change_details.status`; `score_change_requests.status` chỉ là **tóm tắt** (`APPROVED` / `REJECTED` / `PARTIALLY_APPROVED`).
+* Toàn bộ xử lý duyệt chạy trong **1 transaction ACID duy nhất**: cập nhật trạng thái đơn cha → cập nhật trạng thái từng ô con → `UPDATE scores` (giữ `is_draft = FALSE`) → tính lại `average_score` & `is_passed` → ghi `audit_logs` → `INSERT INTO email_outbox`.
+* **Lỗi ở bất kỳ bước nào → ROLLBACK toàn bộ** → không tồn tại trạng thái "đơn đã duyệt nhưng điểm chưa sửa".
+* **Mail KHÔNG gửi bên trong transaction.** Mail được ghi vào `email_outbox` trong cùng transaction, sau `COMMIT` worker mới gửi → **gửi mail thông báo tự động** mà không cần thao tác tay, và không bao giờ có tình huống GV nhận mail "đã duyệt" trong khi DB đã rollback.
+
+**Quy tắc đọc điểm (chống lộ điểm chưa duyệt):**
+* Mọi truy vấn đọc **điểm chính thức** phải lọc `WHERE is_draft = FALSE`: báo cáo thống kê (SD20), xuất ĐTB lớp (SD13), xem ĐTB lớp (SD12), và **xem điểm học sinh** (`GET /scores/student/{studentId}` — đường hở rò rỉ nếu bỏ qua vì học sinh tự xem điểm của chính mình).
+* Ngoại lệ: `GET /scores/assignment/{assignmentId}` trả cả 2 loại kèm cờ `is_draft` (GV cần thấy nháp để tiếp tục soạn — SD11); Giáo vụ mặc định chỉ đọc điểm chính thức.
+
+**Điểm đã loại bỏ khỏi phạm vi:**
+* `SD10_DiemDanhHocSinh` — chức năng điểm danh chuyên cần **không được nêu trong Yêu cầu 3** của đề bài. Đã gỡ bỏ khỏi bảng ánh xạ §4, sơ đồ §7.10, danh mục endpoint `API.md` và bảng `attendances` trong `database-design.md`.
+
+**Quy ước hiển thị biểu mẫu BẢNG ĐIỂM MÔN HỌC:**
+* Cột **"Điểm 15'"** trên biểu mẫu được mở rộng thành **nhiều ô nhập** (`score_15m_1` … `score_15m_5`) theo quy định `MIN_COL_15M` / `MAX_COL_15M`.
+* Cột **"Điểm 1 tiết"** được mở rộng thành **nhiều ô nhập** (`score_45m_1` … `score_45m_3`) theo quy định `MIN_COL_45M` / `MAX_COL_45M`.
+* Cột **"Điểm thi"** là **1 ô** (`score_final`) cố định theo quy định `NUM_COL_FINAL`.
 
 ---
 
@@ -156,7 +287,9 @@ Hệ thống tuân thủ triệt để nguyên tắc không hard-code bất kỳ
 
 ---
 
-## 7. Toàn Bộ 22 Sơ Đồ Sequence Diagram Chi Tiết (Chuẩn Mô Hình BCE)
+## 7. Toàn Bộ 23 Sơ Đồ Sequence Diagram Chi Tiết (Chuẩn Mô Hình BCE)
+
+> **Ghi chú:** `SD10_DiemDanhHocSinh` đã được gỡ bỏ khỏi phạm vi đề bài (xem §4.1) — các sơ đồ còn lại được đánh số lại liên tục từ `7.1` đến `7.21`; thêm mới `7.22` (SD23) và `7.23` (SD24) cho luồng **Gửi duyệt & Chốt bảng điểm**.
 
 Mỗi sơ đồ dưới đây gồm đầy đủ 4 đối tượng phân tích:
 * **`Actor` (👤):** Người dùng tương tác trực tiếp (`NguoiDung`, `NhanVien`, `GiaoVien`, `GiaoVu`).
@@ -573,32 +706,11 @@ GiaoVien (Actor)      LopDayView (Boundary)       LopDayController (Control)    
      |< - - - - - - - - - - - - -|                            |                                                |
 ```
 
-#### 7.10 Sơ đồ 10: `SD10_DiemDanhHocSinh` — Điểm danh học sinh
-*Ánh xạ Use Case:* `Điểm danh học sinh`  
-*Kịch bản:* Giáo viên chọn ngày, tích chọn trạng thái điểm danh cho từng học sinh (Có mặt, Có phép, Không phép); Controller kiểm tra dữ liệu và lưu thông tin vào thực thể `DiemDanh`.
-
-```
-GiaoVien (Actor)      DiemDanhView (Boundary)    DiemDanhController (Control)                         DiemDanh (Entity)
-     |                           |                            |                                                |
-     | 1: Chọn ngày & tích chọn  |                            |                                                |
-     |    trạng thái chuyên cần  |                            |                                                |
-     |-------------------------->|                            |                                                |
-     |                           | 1.1: Gửi bảng điểm danh    |                                                |
-     |                           |--------------------------->|                                                |
-     |                           |                            | 1.2: saveAttendanceBatch(classId, date, data)  |
-     |                           |                            |----------------------------------------------->|
-     |                           |                            | 1.3: Xác nhận lưu thành công (Commit OK)       |
-     |                           |                            |< - - - - - - - - - - - - - - - - - - - - - - - |
-     |                           | 1.4: Báo lưu điểm danh OK  |                                                |
-     |                           |< - - - - - - - - - - - - - |                                                |
-     | 1.5: Hiển thị thông báo   |                            |                                                |
-     |      điểm danh thành công |                            |                                                |
-     |< - - - - - - - - - - - - -|                            |                                                |
-```
-
-#### 7.11 Sơ đồ 11: `SD11_NhapDiemMonHoc` — Nhập điểm môn học (Yêu cầu 3)
+#### 7.10 Sơ đồ 10: `SD11_NhapDiemMonHoc` — Nhập điểm môn học (Yêu cầu 3)
 *Ánh xạ Use Case:* `Nhập điểm môn học` (chứa `<<include>> Tính điểm trung bình môn`)  
-*Kịch bản:* Giáo viên nhập các cột điểm thành phần theo biểu mẫu BẢNG ĐIỂM MÔN HỌC (15' có 1-5 cột, 1 tiết có 1-3 cột, 1 điểm thi); Controller **kiểm tra `teaching_assignments.is_locked` trước — nếu ĐÃ KHÓA thì từ chối 423 và hướng sang SD14 (gửi yêu cầu sửa điểm)**; nếu MỞ thì lấy quy định cột từ `QuyDinh`, kiểm tra khoảng điểm $0.0 \le \text{Điểm} \le 10.0$, tự động thực hiện luồng bao hàm `<<include>> Tính điểm trung bình môn` cho từng học sinh và lưu vào thực thể `Diem`.
+*Kịch bản:* Giáo viên nhập các cột điểm thành phần theo biểu mẫu BẢNG ĐIỂM MÔN HỌC (15' có 1-5 cột, 1 tiết có 1-3 cột, 1 điểm thi); Controller kiểm tra **2 điều kiện trước khi ghi**: (1) **bảng điểm ĐÃ CHỐT** → từ chối **423 `SCORE_TABLE_LOCKED`** và hướng sang **SD25** (gửi đơn phúc khảo); (2) **đang có đơn gửi duyệt `PENDING`** → từ chối **423 `SCORE_SUBMISSION_PENDING`** → GV phải **Hủy** đơn (`PUT /score-submissions/{id}/cancel`) trước rồi mới sửa được. Nếu cả 2 OK thì lấy quy định cột từ `QuyDinh`, kiểm tra khoảng điểm $0.0 \le \text{Điểm} \le 10.0$, tự động thực hiện luồng bao hàm `<<include>> Tính điểm trung bình môn` cho từng học sinh và lưu vào thực thể `Diem` với cờ **`is_draft = TRUE` (BẢNG ĐIỂM TẠM)** — ghi đè bản nháp trước. Điểm tạm **chưa phải điểm chính thức**; muốn chốt phải qua **SD23 (Gửi bảng điểm lên duyệt)** → **SD24 (Giáo vụ duyệt & chốt)**.
+>
+> **Quy ước giá trị ô điểm (đã chốt):** ô **`NULL` (để trống) = CHƯA NHẬP** → lỗi GV, được phép ở bước "Lưu" nhưng **bị chặn** ở bước "Gửi duyệt"; ô **`0.00` = ĐÃ NHẬP** → học sinh **vắng** hoặc **thi 0 điểm** → quy về 0 điểm và **vẫn được tính vào ĐTB**. Ô `NULL` bị loại khỏi cả tử số & mẫu số của ĐTB; ô `0.00` vẫn được tính.
 
 ```
 GiaoVien (Actor)      NhapDiemView (Boundary)     DiemController (Control)      QuyDinh (Entity)         Diem (Entity)
@@ -622,7 +734,24 @@ GiaoVien (Actor)      NhapDiemView (Boundary)     DiemController (Control)      
      |      hoặc khoảng điểm     |                            |                        |                       |
      |< - - - - - - - - - - - - -|                            |                        |                       |
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-[Dữ liệu điểm hợp lệ]
+====[ alt 1b: Kiểm tra trạng thái bảng điểm & đơn gửi duyệt ]=================================================
+[Bảng điểm ĐÃ CHỐT (is_locked == true)]
+     |                           | 1.4b: Từ chối 423 SCORE_TABLE_LOCKED             |                       |
+     |                           |      & hướng sang SD25 (gửi đơn phúc khảo)       |                       |
+     |                           |< - - - - - - - - - - - - - - - - - - - - - - - -|                       |
+     | 1.5b: Thông báo bảng điểm |                            |                        |                       |
+     |      đã chốt, hãy gửi đơn  |                            |                        |                       |
+     |< - - - - - - - - - - - - -|                            |                        |                       |
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+[Đang có đơn gửi duyệt PENDING]
+     |                           | 1.4c: Từ chối 423 SCORE_SUBMISSION_PENDING        |                       |
+     |                           |      (GV phải Hủy đơn trước)                    |                       |
+     |                           |< - - - - - - - - - - - - - - - - - - - - - - - -|                       |
+     | 1.5c: Thông báo: hãy hủy  |                            |                        |                       |
+     |      đơn gửi duyệt trước   |                            |                        |                       |
+     |< - - - - - - - - - - - - -|                            |                        |                       |
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+[Dữ liệu điểm hợp lệ & bảng điểm đang mở & không có đơn PENDING]
      |                           |                            |                        |                       |
 ====[ loop: Duyệt từng học sinh (<<include>> Tính điểm trung bình môn) ]==============================================
      |                           |                            | 2: calculateAverage()  |                       |
@@ -643,9 +772,9 @@ GiaoVien (Actor)      NhapDiemView (Boundary)     DiemController (Control)      
 ======================================================================================================================
 ```
 
-#### 7.12 Sơ đồ 12: `SD12_XemBangDiemTrungBinhLop` — Xem bảng điểm trung bình lớp (Yêu cầu 3)
+#### 7.11 Sơ đồ 11: `SD12_XemBangDiemTrungBinhLop` — Xem bảng điểm trung bình lớp (Yêu cầu 3)
 *Ánh xạ Use Case:* `Xem bảng điểm trung bình lớp` (chứa `<<include>> Tính điểm trung bình môn`)  
-*Kịch bản:* Giáo viên chọn Lớp, Môn học, Năm học; Controller truy vấn điểm thành phần các học kỳ từ thực thể `Diem`, tự động tính điểm trung bình môn cả năm học và hiển thị theo biểu mẫu BẢNG ĐIỂM MÔN HỌC (STT, Họ tên, Lớp, Điểm TB HK1, Điểm TB HK2).
+*Kịch bản:* Giáo viên chọn Lớp, Môn học, Năm học; Controller truy vấn điểm thành phần các học kỳ từ thực thể `Diem` (**chỉ đọc điểm chính thức: `is_draft = FALSE`**), tự động tính điểm trung bình môn cả năm học và hiển thị theo biểu mẫu **BẢNG ĐIỂM TRUNG BÌNH LỚP** (Năm học, STT, Họ tên, Lớp, Điểm TB HK1, Điểm TB HK2). API trả kèm thêm `avg_yearly` (ĐTB cả năm) để phục vụ xếp loại — biểu mẫu xuất file theo mẫu đề bài không đưa cột này vào (xem §4.1).
 
 ```
 GiaoVien (Actor)     XemBangDiemView (Boundary)   DiemController (Control)                             Diem (Entity)
@@ -672,9 +801,9 @@ GiaoVien (Actor)     XemBangDiemView (Boundary)   DiemController (Control)      
      |< - - - - - - - - - - - - -|                            |                                                |
 ```
 
-#### 7.13 Sơ đồ 13: `SD13_XuatBangDiemTrungBinhLop` — Xuất bảng điểm trung bình lớp (Yêu cầu 3)
+#### 7.12 Sơ đồ 12: `SD13_XuatBangDiemTrungBinhLop` — Xuất bảng điểm trung bình lớp (Yêu cầu 3)
 *Ánh xạ Use Case:* `Xuất bảng điểm trung bình lớp`  
-*Kịch bản:* Giáo viên bấm nút "Xuất bảng điểm"; Controller tổng hợp dữ liệu điểm trung bình từ thực thể `Diem`, đóng gói thành file Excel/PDF chuẩn biểu mẫu trường và gửi về cho trình duyệt tự động tải xuống.
+*Kịch bản:* Giáo viên bấm nút "Xuất điểm trung bình lớp"; Controller tổng hợp dữ liệu điểm trung bình từ thực thể `Diem` (**chỉ đọc điểm chính thức: `is_draft = FALSE`**), đóng gói thành file Excel/PDF đúng biểu mẫu **BẢNG ĐIỂM TRUNG BÌNH LỚP** (Năm học, STT, Họ tên, Lớp, Điểm TB HK1, Điểm TB HK2) và gửi về cho trình duyệt tự động tải xuống.
 
 ```
 GiaoVien (Actor)      XuatDiemView (Boundary)     DiemController (Control)                             Diem (Entity)
@@ -700,15 +829,15 @@ GiaoVien (Actor)      XuatDiemView (Boundary)     DiemController (Control)      
      |< - - - - - - - - - - - - -|                            |                                                |
 ```
 
-#### 7.14 Sơ đồ 14: `SD14_SuaDiemHocSinh` — Sửa điểm & Gửi yêu cầu chỉnh điểm (Yêu cầu 3)
-*Ánh xạ Use Case:* `Sửa điểm học sinh` (chứa quan hệ `<<extend>> Gửi yêu cầu chỉnh điểm`)  
-*Kịch bản:* Giáo viên nhập điểm mới cần sửa; Controller kiểm tra trạng thái khóa của bảng điểm từ thực thể `BangDiem` (Extension Point). Nếu bảng điểm còn **Mở**, cập nhật trực tiếp; nếu **Đã khóa**, kích hoạt luồng mở rộng `<<extend>> Gửi yêu cầu chỉnh điểm` yêu cầu giáo viên nhập lý do và lưu đơn vào thực thể `YeuCauSuaDiem` để chờ Giáo vụ phê duyệt.
+#### 7.13 Sơ đồ 13: `SD14_SuaDiemHocSinh` — Sửa điểm học sinh (bảng điểm đang MỞ) (Yêu cầu 3)
+*Ánh xạ Use Case:* `Sửa điểm học sinh`  
+*Kịch bản:* Giáo viên sửa một ô điểm khi bảng điểm đang **MỞ** (`teaching_assignments.is_locked = false`). Controller kiểm tra 2 điều kiện trước khi ghi: (1) bảng điểm **chưa chốt** — nếu đã chốt thì hướng sang **SD25 (Gửi yêu cầu chỉnh điểm)**; (2) lớp môn học **không có đơn gửi duyệt đang `PENDING`** — nếu có thì trả **423 `SCORE_SUBMISSION_PENDING`** để Giáo viên **Hủy** đơn trước. Nếu hợp lệ: cập nhật giá trị vào **bảng điểm tạm** (`is_draft = TRUE`), tự động thực hiện `<<include>> Tính điểm trung bình môn` (loại ô `NULL` khỏi cả tử số & mẫu số, giữ ô `0.00` → học sinh vắng vẫn bị trừ điểm đúng thực tế) và ghi `audit_logs`.
 
 ```
-GiaoVien (Actor)       SuaDiemView (Boundary)     SuaDiemController (Control)   BangDiem (Entity)        YeuCauSuaDiem (Entity)
+GiaoVien (Actor)       SuaDiemView (Boundary)     SuaDiemController (Control)   BangDiem (Entity)        Diem (Entity)
      |                           |                            |                        |                       |
-     | 1: Nhập điểm mới cần sửa  |                            |                        |                       |
-     |    và nhấn Lưu thay đổi   |                            |                        |                       |
+     | 1: Chọn lớp/môn & bấm    |                            |                        |                       |
+     |    vào ô điểm cần sửa     |                            |                        |                       |
      |-------------------------->|                            |                        |                       |
      |                           | 1.1: Gửi yêu cầu sửa điểm  |                        |                       |
      |                           |--------------------------->|                        |                       |
@@ -718,44 +847,53 @@ GiaoVien (Actor)       SuaDiemView (Boundary)     SuaDiemController (Control)   
      |                           |                            | 1.3: Trả về trạng thái |                       |
      |                           |                            |< - - - - - - - - - - - |                       |
      |                           |                            |                        |                       |
-====[ alt: Kiểm tra trạng thái khóa của Bảng điểm (Extension Point) ]==================================================
-[Extension Condition: Bảng điểm ĐÃ BỊ KHÓA (is_locked == true)] -> <<extend>> Gửi yêu cầu chỉnh điểm
-     |                           | 1.4: Báo bảng điểm đã khóa,|                        |                       |
-     |                           |      yêu cầu nhập lý do    |                        |                       |
-     |                           |< - - - - - - - - - - - - - |                        |                       |
-     | 1.5: Hiển thị form lý do  |                            |                        |                       |
+====[ alt: Kiểm tra điều kiện ghi điểm ]=========================================================================
+[Điều kiện 1: Bảng điểm ĐÃ CHỐT (is_locked == true)]
+     |                           | 1.4: Từ chối 423 SCORE_TABLE_LOCKED |               |                       |
+     |                           |      & hướng sang SD25               |               |                       |
+     |                           |< - - - - - - - - - - - - - - - - - -|               |                       |
+     | 1.5: Thông báo: bảng điểm |                            |                        |                       |
+     |    đã chốt, hãy gửi đơn    |                            |                        |                       |
      |< - - - - - - - - - - - - -|                            |                        |                       |
-     | 2: Nhập lý do & Gửi yêu cầu                            |                        |                       |
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+[Điều kiện 2: Đang có đơn gửi duyệt PENDING]
+     |                           | 1.6: Từ chối 423 SCORE_SUBMISSION_PENDING           |                       |
+     |                           |      (GV phải Hủy đơn trước)                        |                       |
+     |                           |< - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+     | 1.7: Thông báo: hãy hủy   |                            |                        |                       |
+     |    đơn gửi duyệt trước    |                            |                        |                       |
+     |< - - - - - - - - - - - - -|                            |                        |                       |
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+[Cả 2 điều kiện OK]
+     | 2: Nhập điểm mới & Lưu     |                            |                        |                       |
      |-------------------------->|                            |                        |                       |
      |                           | 2.1: Chuyển tiếp yêu cầu   |                        |                       |
      |                           |--------------------------->|                        |                       |
-     |                           |                            | 2.2: Tạo đơn xin sửa điểm (chờ duyệt)          |
-     |                           |                            |----------------------------------------------->|
-     |                           |                            | 2.3: Xác nhận đã ghi nhận yêu cầu              |
-     |                           |                            |< - - - - - - - - - - - - - - - - - - - - - - - |
-     |                           | 2.4: Báo đã gửi duyệt      |                        |                       |
-     |                           |< - - - - - - - - - - - - - |                        |                       |
-     | 2.5: Hiển thị thông báo:  |                            |                        |                       |
-     | "Đã gửi yêu cầu tới Giáo vụ chờ phê duyệt"             |                        |                       |
-     |< - - - - - - - - - - - - -|                            |                        |                       |
-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-[Bảng điểm ĐANG MỞ (is_locked == false)]
-     |                           |                            | 3: Cập nhật điểm trực tiếp                     |
+     |                           |                            | 2.2: Kiểm tra 0.0 <= Điểm <= 10.0               |
      |                           |                            |----------------------->|                       |
-     |                           |                            | 3.1: Xác nhận cập nhật thành công              |
-     |                           |                            |< - - - - - - - - - - - |                       |
-     |                           | 3.2: Báo sửa thành công    |                        |                       |
-     |                           |< - - - - - - - - - - - - - |                        |                       |
-     | 3.3: Hiển thị điểm mới    |                            |                        |                       |
+     |                           |                            | 2.3: Cập nhật điểm vào BẢNG ĐIỂM TẠM             |
+     |                           |                            |     (is_draft = TRUE)                          |
+     |                           |                            |----------------------------------------------->|
+     |                           |                            | 2.4: <<include>> Tính điểm trung bình môn        |
+     |                           |                            |     (loại ô NULL khỏi cả tử & mẫu số)          |
+     |                           |                            |----------------------------------------------->|
+     |                           |                            | 2.5: Ghi audit log (SỬA ĐIỂM)                 |
+     |                           |                            | 2.6: Xác nhận cập nhật thành công              |
+     |                           |                            |< - - - - - - - - - - - - - - - - - - - - - - - |
+     |                           | 2.7: Báo sửa thành công    |                        |                       |
      |< - - - - - - - - - - - - -|                            |                        |                       |
-========================================================================================================================
+     | 2.8: Hiển thị điểm mới    |                            |                        |                       |
+     |< - - - - - - - - - - - - -|                            |                        |                       |
+=======================================================================================================================
 ```
+
+> **Lưu ý:** nhánh "Đã chốt" **không** xử lý trong sơ đồ này — nó chuyển sang use case **`SD25_GuiYeuCauChinhDiem`** (xem §7.24). Việc tách 2 use case giúp mỗi sơ đồ chỉ có **một luồng nghiệp vụ** rõ ràng.
 
 ---
 
 ### PHÂN HỆ IV: GIÁO VỤ, QUẢN TRỊ & BÁO CÁO (ACTOR: `GIAOVU`)
 
-#### 7.15 Sơ đồ 15: `SD15_XemNhatKyHeThong` — Xem nhật ký hệ thống
+#### 7.14 Sơ đồ 14: `SD15_XemNhatKyHeThong` — Xem nhật ký hệ thống
 *Ánh xạ Use Case:* `Xem nhật ký hệ thống`  
 *Kịch bản:* Giáo vụ lọc lịch sử hoạt động theo mốc thời gian, loại hành động (Sửa điểm, Đổi quy định); Controller truy vấn bảng audit log trong thực thể `NhatKy` và trả kết quả hiển thị.
 
@@ -777,7 +915,7 @@ GiaoVu (Actor)        NhatKyView (Boundary)       NhatKyController (Control)    
      |< - - - - - - - - - - - - -|                            |                                                |
 ```
 
-#### 7.16 Sơ đồ 16: `SD16_PhanCongGiangDay` — Phân công giảng dạy
+#### 7.15 Sơ đồ 15: `SD16_PhanCongGiangDay` — Phân công giảng dạy
 *Ánh xạ Use Case:* `Phân công giảng dạy`  
 *Kịch bản:* Giáo vụ chọn giáo viên, môn học, lớp học và học kỳ; Controller kiểm tra xem giáo viên có bị trùng lịch hay lớp đã có người dạy chưa, sau đó ghi dữ liệu vào thực thể `PhanCong`.
 
@@ -814,7 +952,7 @@ GiaoVu (Actor)       PhanCongView (Boundary)     PhanCongController (Control)   
 ========================================================================================================================
 ```
 
-#### 7.17 Sơ đồ 17: `SD17_QuanLyTaiKhoanVaPhanQuyen` — Quản lý tài khoản và phân quyền
+#### 7.16 Sơ đồ 16: `SD17_QuanLyTaiKhoanVaPhanQuyen` — Quản lý tài khoản và phân quyền
 *Ánh xạ Use Case:* `Quản lý tài khoản và phân quyền` (kết nối `MailServer`)  
 *Kịch bản:* Giáo vụ nhập thông tin (username, email, họ tên, role) — KHÔNG nhập mật khẩu; Controller kiểm tra trùng lặp username/email, TỰ SINH mật khẩu tạm, băm BCrypt, lưu vào thực thể `User` kèm cờ `must_change_password=true`, và gọi dịch vụ ngoài `MailServer` gửi email chứa tài khoản + mật khẩu tạm. Người dùng bắt buộc đổi mật khẩu ở lần đăng nhập đầu (`SD02`).
 
@@ -862,7 +1000,7 @@ GiaoVu (Actor)       TaiKhoanView (Boundary)     TaiKhoanController (Control)   
 =======================================================================================================================
 ```
 
-#### 7.18 Sơ đồ 18: `SD18_KhoaMoBangDiem` — Khóa / Mở bảng điểm
+#### 7.17 Sơ đồ 17: `SD18_KhoaMoBangDiem` — Khóa / Mở bảng điểm
 *Ánh xạ Use Case:* `Khoá mở bảng điểm`  
 *Kịch bản:* Giáo vụ chọn Lớp, Môn học và gạt công tắc chuyển trạng thái Khóa/Mở; Controller cập nhật cờ `is_locked` vào thực thể `BangDiem` để kiểm soát quyền sửa điểm của giáo viên.
 
@@ -885,46 +1023,54 @@ GiaoVu (Actor)       KhoaDiemView (Boundary)     KhoaDiemController (Control)   
      |< - - - - - - - - - - - - -|                            |                                                |
 ```
 
-#### 7.19 Sơ đồ 19: `SD19_PheDuyetYeuCauChinhDiem` — Phê duyệt yêu cầu chỉnh điểm
+#### 7.18 Sơ đồ 18: `SD19_PheDuyetYeuCauChinhDiem` — Phê duyệt yêu cầu chỉnh điểm
 *Ánh xạ Use Case:* `Phê duyệt yêu cầu chỉnh điểm`  
-*Kịch bản:* Giáo vụ xem danh sách các đơn xin sửa điểm; nhấn "Duyệt" hoặc "Từ chối"; Controller cập nhật trạng thái đơn trong thực thể `YeuCauSuaDiem` và mở quyền cập nhật điểm cho học sinh tương ứng.
+*Kịch bản:* Giáo vụ xem danh sách các đơn xin sửa điểm; đối với **đơn lô** hiển thị bảng so sánh điểm cũ ↔ điểm mới (`GET /score-requests/{id}/diff`) và **duyệt/từ chối từng ô**; đối với **đơn lẻ** duyệt/từ chối toàn bộ. Controller thực hiện toàn bộ xử lý trong **1 transaction ACID duy nhất**: cập nhật trạng thái đơn cha + trạng thái từng ô con → ghi điểm mới vào **điểm chính thức** (giữ nguyên `is_draft = FALSE`, **không** đụng tới `is_locked`) → tính lại `average_score` & `is_passed` → ghi `audit_logs` → `INSERT INTO email_outbox` để **gửi mail thông báo tự động** cho Giáo viên sau khi COMMIT. Lỗi ở bất kỳ bước nào → **ROLLBACK toàn bộ**.
 
 ```
-GiaoVu (Actor)       PheDuyetView (Boundary)     PheDuyetController (Control)  YeuCauSuaDiem (Entity)     Diem (Entity)
-     |                           |                            |                       |                        |
-     | 1: Xem đơn & bấm          |                            |                       |                        |
-     |    "Duyệt" / "Từ chối"    |                            |                       |                        |
-     |-------------------------->|                            |                       |                        |
-     |                           | 1.1: Gửi quyết định duyệt  |                       |                        |
-     |                           |--------------------------->|                       |                        |
-     |                           |                            |                       |                        |
-====[ alt: Xử lý theo quyết định của Giáo vụ ]=========================================================================
-[Trường hợp: DUYỆT yêu cầu]
-     |                           |                            | 1.2: updateRequestStatus(id, 'APPROVED')       |
-     |                           |                            |---------------------->|                        |
-     |                           |                            | 1.3: Xác nhận thành công                       |
-     |                           |                            |< - - - - - - - - - - -|                        |
-     |                           |                            | 1.4: applyNewScore(studentId, newScore)        |
-     |                           |                            |----------------------------------------------->|
-     |                           |                            | 1.5: Cập nhật điểm thành công                  |
-     |                           |                            |< - - - - - - - - - - - - - - - - - - - - - - - |
-     |                           | 1.6: Báo phê duyệt OK      |                       |                        |
-     |                           |< - - - - - - - - - - - - - |                       |                        |
-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-[Trường hợp: TỪ CHỐI yêu cầu]
-     |                           |                            | 2: updateRequestStatus(id, 'REJECTED', reason) |
-     |                           |                            |---------------------->|                        |
-     |                           |                            | 2.1: Xác nhận thành công                       |
-     |                           |                            |< - - - - - - - - - - -|                        |
-     |                           | 2.2: Báo từ chối OK        |                       |                        |
-     |                           |< - - - - - - - - - - - - - |                       |                        |
+GiaoVu (Actor)       PheDuyetView (Boundary)     PheDuyetController (Control)  YeuCauSuaDiem (Entity)     Diem (Entity)         AuditLog/EmailOutbox
+     |                           |                            |                       |                        |                       |
+     | 1: Xem đơn & chọn Duyệt / |                            |                       |                        |                       |
+     |    Từ chối cho từng ô     |                            |                       |                        |                       |
+     |-------------------------->|                            |                       |                        |                       |
+     |                           | 1.1: Gửi quyết định duyệt  |                       |                        |                       |
+     |                           |   (decisions[])           |                       |                        |                       |
+     |                           |--------------------------->|                       |                        |                       |
+     |                           |                            |                       |                        |                       |
+====[ alt: Xử lý trong 1 TRANSACTION ACID duy nhất ]==============================================================
+[Trường hợp: DUYỆT ô điểm]
+     |                           |                            | 1.2: BEGIN TRANSACTION          |                        |                       |
+     |                           |                            | 1.3: updateDetailStatus(id, 'APPROVED')             |                       |
+     |                           |                            |---------------------->|                        |                       |
+     |                           |                            | 1.4: applyNewScore(studentId, col, newValue)        |                       |
+     |                           |                            |     GIỮ NGUYÊN is_draft = FALSE (điểm chính thức)  |                       |
+     |                           |                            |     KHÔNG đụng tới is_locked (vẫn ĐÃ CHỐT)         |                       |
+     |                           |                            |----------------------------------------------->|                       |
+     |                           |                            | 1.5: Tính lại ĐTB & is_passed (cùng transaction)    |                       |
+     |                           |                            |----------------------------------------------->|                       |
+     |                           |                            | 1.6: Ghi audit log + enqueue email_outbox            |                       |
+     |                           |                            |-------------------------------------------------------------------------->|
+     |                           |                            | 1.7: updateRequestStatus(id, status tổng hợp)     |                       |
+     |                           |                            |---------------------->|                        |                       |
+     |                           |                            | 1.8: COMMIT (thành công → worker gửi mail)          |                       |
+     |                           |                            |                                                                        |                       |
+[Trường hợp: LỖI ở bất kỳ bước nào]
+     |                           |                            | 1.9: ROLLBACK toàn bộ (không đổi điểm, đơn vẫn PENDING)           |                       |
 =======================================================================================================================
-     | 2.3: Cập nhật giao diện   |                            |                       |                        |
-     |      danh sách phê duyệt  |                            |                       |                        |
-     |< - - - - - - - - - - - - -|                            |                       |                        |
+[Trường hợp: TỪ CHỐI ô điểm]
+     |                           |                            | 2.1: updateDetailStatus(id, 'REJECTED', note)    |                       |
+     |                           |                            |---------------------->|                        |                       |
+     |                           |                            | 2.2: KHÔNG thay đổi bất kỳ dữ liệu điểm nào (is_draft vẫn FALSE)      |                       |
+     |                           |                            | 2.3: Ghi audit log + enqueue email_outbox            |                       |
+     |                           |                            |-------------------------------------------------------------------------->|
+     |                           | 2.4: Báo kết quả        |                       |                        |                       |
+     |                           |< - - - - - - - - - - - - -|                       |                        |                       |
+     | 2.5: Cập nhật danh sách &   |                            |                       |                        |                       |
+     |    thông báo kết quả        |                            |                       |                        |                       |
+     |< - - - - - - - - - - - - -|                            |                       |                        |                       |
 ```
 
-#### 7.20 Sơ đồ 20: `SD20_XemBaoCaoThongKe` — Báo cáo thống kê & Biểu đồ Chart.js (Yêu cầu 4)
+#### 7.19 Sơ đồ 19: `SD20_XemBaoCaoThongKe` — Báo cáo thống kê & Biểu đồ Chart.js (Yêu cầu 4)
 *Ánh xạ Use Case:* `Xem báo cáo thống kê` (chứa `<<include>> Vẽ biểu đồ báo cáo`)  
 *Kịch bản:* Giáo vụ lọc báo cáo theo Môn, Học kỳ, Năm học; Controller truy vấn điểm chuẩn từ thực thể `QuyDinh` (`PASSING_SCORE = 5.0`), lấy danh sách điểm từ thực thể `Diem`, đếm số học sinh có $\text{ĐTB} \ge 5.0$, tính tỷ lệ phần trăm đạt và trả dữ liệu JSON để giao diện gọi hàm `new Chart()` của thư viện **Chart.js** vẽ biểu đồ trực quan (`<<include>> Vẽ biểu đồ báo cáo`).
 
@@ -967,7 +1113,7 @@ GiaoVu (Actor)       BaoCaoView (Boundary)       BaoCaoController (Control)    Q
      |< - - - - - - - - - - - - -|                            |                        |                       |
 ```
 
-#### 7.21 Sơ đồ 21: `SD21_ThayDoiQuyDinh` — Thay đổi quy định (Yêu cầu 5)
+#### 7.20 Sơ đồ 20: `SD21_ThayDoiQuyDinh` — Thay đổi quy định (Yêu cầu 5)
 *Ánh xạ Use Case:* `Thay đổi quy định`  
 *Kịch bản:* Giáo vụ nhập các tham số mới; Controller kiểm tra tính logic đầy đủ (`MIN_AGE < MAX_AGE`, `MAX_CLASS_SIZE > 0`, `MIN_COL_15M ≤ MAX_COL_15M`, `MIN_COL_45M ≤ MAX_COL_45M`, `0 ≤ PASSING_SCORE ≤ 10`, `MAX_LOGIN_ATTEMPTS > 0`), cập nhật giá trị mới vào thực thể `QuyDinh` (`system_rules`, 1 transaction cho bulk) và phản hồi kết quả ra giao diện.
 
@@ -1005,7 +1151,7 @@ GiaoVu (Actor)       QuyDinhView (Boundary)      QuyDinhController (Control)    
 ========================================================================================================================
 ```
 
-#### 7.22 Sơ đồ 22: `SD22_QuanLyDanhMucMonHoc` — Quản lý danh mục môn học (Yêu cầu 5)
+#### 7.21 Sơ đồ 21: `SD22_QuanLyDanhMucMonHoc` — Quản lý danh mục môn học (Yêu cầu 5)
 *Ánh xạ Use Case:* `Quản lý danh mục môn học`  
 *Kịch bản:* Giáo vụ thực hiện Thêm mới, Sửa hoặc Xóa môn học của các khối lớp; Controller kiểm tra ràng buộc mã môn học duy nhất và cập nhật vào thực thể `MonHoc`.
 
@@ -1041,6 +1187,196 @@ GiaoVu (Actor)       MonHocView (Boundary)       MonHocController (Control)     
      |< - - - - - - - - - - - - -|                            |                                                |
 ========================================================================================================================
 ```
+
+---
+
+#### 7.22 Sơ đồ 22: `SD23_GuiBangDiemLenDuyet` — Gửi bảng điểm lên duyệt
+*Ánh xạ Use Case:* `Gửi bảng điểm lên duyệt`  
+*Kịch bản:* Sau khi nhập xong BẢNG ĐIỂM MÔN HỌC (SD11), Giáo viên bấm nút "Gửi duyệt"; Controller kiểm tra bảng điểm đang MỞ (`teaching_assignments.is_locked = false`), **quét toàn bộ `scores` của lớp môn học để bảo đảm không còn ô điểm `NULL` (chưa nhập)** — nếu còn ô trống thì từ chối **422 `INCOMPLETE_SCORES`** kèm danh sách học sinh & cột bị thiếu để GV điền bổ sung (ô trống là lỗi GV; ô `0.00` là hợp lệ — HS vắng hoặc thi 0 điểm). Sau đó đếm số học sinh & số ô điểm đã nhập, tạo bản ghi `score_submissions` ở trạng thái `PENDING` và đóng dấu `scores.submitted_at`. Bảng điểm vẫn giữ cờ `is_draft = TRUE` — **điểm chưa chính thức** cho tới khi Giáo vụ duyệt (SD24).
+>
+> **Ràng buộc bắt buộc tại bước này (không được bỏ trống):** mọi ô điểm của mọi học sinh trong lớp phải có giá trị (`NOT NULL`) — GV có thể **lưu dở** nhiều lần để soạn tiếp, nhưng **không thể gửi duyệt** khi còn ô trống. Server quét **toàn bộ** bảng điểm của lớp môn học (không chỉ dòng vừa lưu) → không thể lách bằng cách gửi từng phần.
+>
+> **Nhánh Hủy đơn (`<<extend>> Hủy đơn gửi duyệt`):** Trong lúc đơn đang `PENDING`, GV **không sửa được** ô điểm (bị chặn **423 `SCORE_SUBMISSION_PENDING`** — xem §4.2) → nếu phát hiện sai thì GV bấm **"Hủy"**: `PUT /score-submissions/{id}/cancel` → đơn chuyển `CANCELLED`, `is_draft` & `is_locked` **giữ nguyên** → GV sửa lại bảng điểm tạm rồi **gửi duyệt lại** (tạo đơn `PENDING` mới). Bản ghi cũ giữ lại làm lịch sử audit.
+>
+> **Sau khi đã duyệt (`APPROVED`):** bảng điểm **đã khóa** → GV **không** sửa được, kể cả không hủy được. Muốn sửa → gửi **đơn phúc khảo** qua **`SD25_GuiYeuCauChinhDiem`** → Giáo vụ duyệt theo **SD19**.
+
+```
+GiaoVien (Actor)      GuiDuyetView (Boundary)    GuiDuyetController (Control)   BangDiem (Entity)    BangDiemChoDuyet (Entity)
+     |                           |                            |                        |                       |
+     | 1: Chọn lớp môn học &    |                            |                        |                       |
+     |    nhấn "Gửi duyệt"      |                            |                        |                       |
+     |-------------------------->|                            |                        |                       |
+     |                           | 1.1: POST /score-submissions                        |                       |
+     |                           |--------------------------->|                        |                       |
+     |                           |                            | 1.2: Lấy trạng thái   |                       |
+     |                           |                            |      (is_locked)      |                       |
+     |                           |                            |---------------------->|                       |
+     |                           |                            | 1.3: Trả về trạng thái|                       |
+     |                           |                            |< - - - - - - - - - - -|                       |
+     |                           |                            |                        |                       |
+====[ alt: Kiểm tra điều kiện gửi duyệt ]=======================================================================
+[Bảng điểm ĐÃ CHỐT (is_locked == true) HOẶC đã có bản ghi PENDING HOẶC chưa nhập ô điểm nào]
+     |                           | 1.4: Báo lỗi (423 / 409 / 422)                   |                       |
+     |                           |< - - - - - - - - - - - - - |                        |                       |
+     | 1.5: Hiển thị lỗi,       |                            |                        |                       |
+     |     không gửi được        |                            |                        |                       |
+     |< - - - - - - - - - - - - -|                            |                        |                       |
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+[Điều kiện hợp lệ]
+     |                           |                            | 2: createSubmission(  |                       |
+     |                           |                            |    assignmentId, note) |                       |
+     |                           |                            |---------------------->|                       |
+     |                           |                            | 2.1: Đếm số HS & số ô điểm                    |
+     |                           |                            |---------------------------------------------->|
+     |                           |                            | 2.2: Tạo bản ghi PENDING |                       |
+     |                           |                            |    (total_students,     |                       |
+     |                           |                            |     total_scores)       |                       |
+     |                           |                            |< - - - - - - - - - - - - - - - - - - - - - - - |
+     |                           |                            | 2.3: Đóng dấu          |                       |
+     |                           |                            |     submitted_at trên   |                       |
+     |                           |                            |     các dòng scores    |                       |
+     |                           |                            |     (is_draft = TRUE)   |                       |
+     |                           |                            |---------------------------------------------->|
+     |                           | 1.6: Trả về thông báo    |                        |                       |
+     |                           |     đã gửi duyệt           |                        |                       |
+     |                           |< - - - - - - - - - - - - - |                        |                       |
+     | 1.7: Hiển thị "Đã gửi    |                            |                        |                       |
+     |     duyệt, chờ Giáo vụ"   |                            |                        |                       |
+     |< - - - - - - - - - - - - -|                            |                        |                       |
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+[Đơn đang PENDING — GV phát hiện sai & bấm "Hủy đơn gửi duyệt"]
+     | 1.8: Bấm "Hủy đơn" &      |                            |                        |                       |
+     |    nhập lý do hủy         |                            |                        |                       |
+     |-------------------------->|                            |                        |                       |
+     |                           | 1.9: PUT /score-submissions/{id}/cancel               |                       |
+     |                           |--------------------------->|                        |                       |
+     |                           |                            | 1.10: Kiểm tra status == 'PENDING'          |
+     |                           |                            |        & thuộc GV hiện tại                 |
+     |                           |                            |---------------------------------------------->|
+     |                           |                            | 1.11: status = 'CANCELLED'                 |
+     |                           |                            |        + ghi cancelled_at, cancel_note      |
+     |                           |                            |        (GIỮ NGUYÊN is_draft = TRUE)          |
+     |                           |                            |---------------------------------------------->|
+     |                           |                            | 1.12: Xác nhận hủy thành công               |
+     |                           |                            |< - - - - - - - - - - - - - - - - - - - - - - - |
+     |                           | 1.13: Báo đã hủy, đã mở |                        |                       |
+     |    quyền sửa bảng điểm    |                            |                        |                       |
+     |< - - - - - - - - - - - - -|                            |                        |                       |
+     | 1.14: Hiển thị: "Đã hủy |                            |                        |                       |
+     |     đơn. Bạn có thể sửa  |                            |                        |                       |
+     |     lại bảng điểm tạm."   |                            |                        |                       |
+     |< - - - - - - - - - - - - -|                            |                        |                       |
+========================================================================================================================
+```
+
+---
+
+#### 7.23 Sơ đồ 23: `SD24_DuyetVaChotBangDiem` — Duyệt & Chốt bảng điểm
+*Ánh xạ Use Case:* `Duyệt & chốt bảng điểm`  
+*Kịch bản:* Giáo vụ xem danh sách bảng điểm chờ duyệt, mở chi tiết để đối chiếu với sổ đạo bì rồi **duyệt** hoặc **từ chối**. Khi **duyệt**, hệ thống thực hiện **trong cùng một transaction (ACID)**: chuyển toàn bộ `scores` của lớp môn học từ `is_draft = TRUE` → `FALSE` (điểm chính thức) **và** đặt `teaching_assignments.is_locked = TRUE` (khóa bảng điểm — Giáo viên không sửa trực tiếp được nữa). Khi **từ chối**, giữ nguyên bản nháp để Giáo viên sửa và gửi lại.
+
+```
+GiaoVu (Actor)      DuyetBangDiemView (Boundary)  DuyetBangDiemController (Control)  BangDiem (Entity)  BangDiemChoDuyet (Entity)
+     |                           |                            |                        |                     |
+     | 1: Xem danh sách bảng     |                            |                        |                     |
+     |    điểm chờ duyệt        |                            |                        |                     |
+     |-------------------------->|                            |                        |                     |
+     |                           | 1.1: GET /score-submissions?status=PENDING             |                     |
+     |                           |--------------------------->|                        |                     |
+     |                           |                            | 1.2: Trả về danh sách |                     |
+     |                           |                            |<---------------------|                     |
+     | 1.3: Hiển thị danh sách  |                            |                        |                     |
+     |< - - - - - - - - - - - - -|                            |                        |                     |
+     |                           |                            |                        |                     |
+     | 2: Chọn 1 bảng điểm &    |                            |                        |                     |
+     |    nhấn "Duyệt"          |                            |                        |                     |
+     |-------------------------->|                            |                        |                     |
+     |                           | 1.4: PUT /score-submissions/{id}/approve                |                     |
+     |                           |--------------------------->|                        |                     |
+     |                           |                            | 2: BEGIN TRANSACTION    |                     |
+     |                           |                            | 2.1: updateScoresToOfficial(assignmentId)      |                     |
+     |                           |                            |     SET is_draft = FALSE |                     |
+     |                           |                            |-------------------->|                     |
+     |                           |                            | 2.2: lockScoreTable(assignmentId)            |                     |
+     |                           |                            |     SET is_locked = TRUE |                     |
+     |                           |                            |-------------------->|                     |
+     |                           |                            | 2.3: writeAuditLog(SCORE_TABLE_APPROVED)      |                     |
+     |                           |                            |-------------------->|                     |
+     |                           |                            | 2.4: COMMIT TRANSACTION |                     |
+     |                           |                            | 2.5: Trả về kết quả      |                     |
+     |                           |                            |<--------------------|                     |
+     |                           | 1.5: Trả về thông báo     |                        |                     |
+     |                           |     chốt điểm thành công |                        |                     |
+     |                           |< - - - - - - - - - - - - - |                        |                     |
+     | 1.6: Hiển thị "Đã chốt   |                            |                        |                     |
+     |     bảng điểm"            |                            |                        |                     |
+     |< - - - - - - - - - - - - -|                            |                        |                     |
+     |                           |                            |                        |                     |
+====[ alt: Giáo vụ TỪ CHỐI bảng điểm ]=====================================================================
+[Giáo vụ nhấn "Từ chối" kèm lý do -> PUT /score-submissions/{id}/reject]
+     |                           |                            | 3: rejectSubmission(id, note)                   |                     |
+     |                           |                            |    (giữ nguyên is_draft = TRUE,                |                     |
+     |                           |                            |     is_locked vẫn = FALSE)                     |                     |
+     |                           |                            |------------------------------------------>|                     |
+     |                           | 1.7: Trả về thông báo từ chối, GV sửa & gửi lại   |                     |
+     |                           |< - - - - - - - - - - - - - |                        |                     |
+========================================================================================================================
+```
+
+---
+
+#### 7.24 Sơ đồ 24: `SD25_GuiYeuCauChinhDiem` — Gửi yêu cầu chỉnh điểm (bảng điểm đã CHỐT)
+*Ánh xạ Use Case:* `Gửi yêu cầu chỉnh điểm` (phúc khảo)  
+*Kịch bản:* Bảng điểm đã **CHỐT** (`teaching_assignments.is_locked = true`) → Giáo viên **không** sửa trực tiếp được. GV dùng **biểu mẫu có cấu trúc trên Web**: chọn **Lớp → Học sinh → Môn học → Cột điểm**; hệ thống hiển thị **Điểm hiện tại ở chế độ CHỈ ĐỌC**; GV nhập **Điểm đề xuất sửa** + **Lý do (bắt buộc)** và **đính kèm ảnh/PDF (tùy chọn)** rồi gửi. Server đối chiếu `old_value` với điểm thực tế (lệch → **409 `SCORE_VALUE_CONFLICT`**), lưu đơn vào `YeuCauSuaDiem` (đơn cha) kèm các dòng `ChiTietSuaDiem` (đơn con) → chờ **SD19** (Giáo vụ duyệt). Hỗ trợ **đơn lẻ** (1 ô điểm) và **đơn lô** (nhiều ô điểm của nhiều học sinh).
+
+```
+GiaoVien (Actor)       YeuCauSuaDiemView (B)     YeuCauSuaDiemController (C) BangDiem (Entity)        YeuCauSuaDiem (Entity)
+     |                           |                            |                       |                       |
+     | 1: Chọn Lớp -> Học sinh   |                            |                       |                       |
+     |    -> Môn học -> Cột điểm |                            |                       |                       |
+     |-------------------------->|                            |                       |                       |
+     |                           | 1.1: Gửi yêu cầu sửa điểm  |                       |                       |
+     |                           |--------------------------->|                       |                       |
+     |                           |                            | 1.2: Lấy trạng thái    |                       |
+     |                           |                            |      (is_locked)       |                       |
+     |                           |                            |----------------------->|                       |
+     |                           |                            | 1.3: Trả về trạng thái |                       |
+     |                           |                            |< - - - - - - - - - - - |                       |
+     |                           |                            | 1.4: Lấy ĐIỂM HIỆN TẠI |                       |
+     |                           |                            |----------------------->|                       |
+     |                           |                            | 1.5: Trả về điểm cũ   |                       |
+     |                           |                            |< - - - - - - - - - - - |                       |
+     |                           | 1.6: Hiển thị ĐIỂM HIỆN TẠI (CHỈ ĐỌC)            |                       |
+     |< - - - - - - - - - - - - -|                            |                       |                       |
+     | 2: Nhập ĐIỂM ĐỀ XUẤT + LÝ DO (bắt buộc)              |                       |                       |
+     |    + file ảnh/PDF (TÙY CHỌN) & Gửi yêu cầu            |                       |                       |
+     |-------------------------->|                            |                       |                       |
+     |                           | 2.1: Chuyển tiếp yêu cầu   |                       |                       |
+     |                           |--------------------------->|                       |                       |
+     |                           |                            | 2.2: Đối chiếu old_value|                      |
+     |                           |                            |      vs điểm thực tế    |                      |
+     |                           |                            |----------------------->|                       |
+     |                           |                            | 2.3: Nếu lệch -> 409     |                      |
+     |                           |                            |      SCORE_VALUE_CONFLICT                      |
+     |                           |                            | 2.4: Tạo đơn xin sửa điểm (chờ duyệt)          |
+     |                           |                            |      + chi tiết từng ô điểm                |
+     |                           |                            |----------------------------------------------->|
+     |                           |                            | 2.5: Xác nhận đã ghi nhận yêu cầu              |
+     |                           |                            |< - - - - - - - - - - - - - - - - - - - - - - - |
+     |                           | 2.6: Báo đã gửi duyệt      |                       |                       |
+     |< - - - - - - - - - - - - -|                            |                       |                       |
+     | 2.7: Hiển thị thông báo:  |                            |                       |                       |
+     | "Đã gửi yêu cầu tới Giáo vụ chờ phê duyệt"             |                       |                       |
+     |< - - - - - - - - - - - - -|                            |                       |                       |
+=======================================================================================================================
+```
+
+> **Vì sao tách khỏi SD14?** `SD14` (sửa bảng điểm tạm, bảng điểm đang MỞ) và `SD25` (gửi đơn phúc khảo, bảng điểm đã CHỐT) là **2 nghiệp vụ khác nhau về bản chất**:
+> * Khác **dữ liệu đầu ra**: ghi vào bảng điểm tạm vs tạo đơn chờ duyệt.
+> * Khác **cơ chế kiểm duyệt**: tự quyết định (không cần ai duyệt) vs bắt buộc Giáo vụ duyệt.
+> * Khác **mức độ rủi ro**: sửa nháp vs thay đổi điểm chính thức đã công bố.
+>
+> Tách ra giúp mỗi sơ đồ chỉ có **một luồng** dễ đọc, và ánh xạ 1–1 với use case trong bảng §4.
 
 ---
 

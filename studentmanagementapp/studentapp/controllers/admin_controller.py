@@ -82,6 +82,16 @@ class AuditLogAdminView(_AcademicOnlyMixin, ModelView):
 
 
 def init_admin(app):
+    """Mount Flask-Admin vào app.
+
+    Flask-Admin ``Admin`` là instance dùng chung ở module scope, nên mỗi lần
+    ``create_app`` chạy lại sẽ đăng ký trùng endpoint. Guard bằng cờ trên
+    chính instance ``admin`` để ``create_app`` có thể được gọi nhiều lần
+    trong cùng process (ví dụ khi chạy test suite).
+    """
+    if getattr(admin, "_views_mounted", False):
+        admin.init_app(app)
+        return
     admin.init_app(app)
     admin.add_view(AuditLogAdminView(
         AuditLog, db.session, endpoint="admin_audit_logs", url="audit-logs", name="Audit Logs"
@@ -89,3 +99,4 @@ def init_admin(app):
     admin.add_view(UserAdminView(
         User, db.session, endpoint="admin_users_panel", url="users", name="Users"
     ))
+    admin._views_mounted = True
