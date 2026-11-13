@@ -1,0 +1,850 @@
+{
+  "info": {
+    "name": "StudentApp-Auth",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "CÁCH TEST (ĐÃ CHỐT: admin tạo tài khoản, KHÓA register public):\n1. Chạy server: cd studentmanagementapp && ./venv/bin/python run.py (port 5001).\n2. Chạy request theo thứ tự 01 → 15.\n3. Request 02/03 PHẢI 403 (đăng ký public đã khóa).\n4. Tạo tài khoản thật ở request 11 (token giaovu từ 04).\n5. OTP 6 số: đổi MK 2 bước 10a→10b; quên MK 14b→14c (mã hết hạn 5p, 1 lần dùng).\nTài khoản seed: giaovu / Admin@123 (ACADEMIC)."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5001/api/v1"
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "refresh_token",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "01-Health (server sống?)",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "health"
+          ]
+        },
+        "description": "MỤC ĐÍCH: kiểm tra server + DB có sống không.\nKẾT QUẢ ĐÚNG: 200, body {\"success\": true, \"data\": {\"db\": \"up\"}}.\nNẾU SAI: báo db down = chưa chạy MySQL hoặc sai DATABASE_URL."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "pm.test('DB up', () => {",
+              "  const b = pm.response.json();",
+              "  pm.expect(b.success).to.eql(true);",
+              "  pm.expect(b.data.db).to.eql('up');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "02-Register-public (PHẢI 403 đã khóa)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          },
+          "raw": "{\n  \"username\": \"hv_test\",\n  \"password\": \"Secret@123\",\n  \"confirm_password\": \"Secret@123\",\n  \"email\": \"hv_test@mail.com\",\n  \"full_name\": \"Hoc Vien Test\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/register",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            "register"
+          ]
+        },
+        "description": "MỤC ĐÍCH: xác nhận đăng ký public ĐÃ KHÓA (nghiệp vụ: chỉ ACADEMIC cấp ở POST /admin/users).\nKẾT QUẢ ĐÚNG: 403 {\"error\": \"FORBIDDEN\", \"message\": \"Hệ thống không cho tự đăng ký...\"}.\nNếu ra 201 là SAI — code khóa register đã bị ai mở lại."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 403 đã khóa', () => pm.response.to.have.status(403));",
+              "pm.test('Báo liên hệ Giáo vụ', () => {",
+              "  const b = pm.response.json();",
+              "  pm.expect(b.error).to.eql('FORBIDDEN');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "03-Register-gui-role (cũng PHẢI 403)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          },
+          "raw": "{\n  \"username\": \"evil_test\",\n  \"password\": \"Secret@123\",\n  \"confirm_password\": \"Secret@123\",\n  \"email\": \"evil_test@mail.com\",\n  \"full_name\": \"Evil Test\",\n  \"role\": \"ACADEMIC\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/register",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            "register"
+          ]
+        },
+        "description": "MỤC ĐÍCH: kể cả gửi kèm role cũng vẫn 403 — không còn đường leo thang.\nKẾT QUẢ ĐÚNG: 403 FORBIDDEN giống request 02."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 403 đã khóa', () => pm.response.to.have.status(403));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "04-Login-ACADEMIC-giaovu (lấy token)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          },
+          "raw": "{\n  \"username\": \"giaovu\",\n  \"password\": \"Admin@123\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            "login"
+          ]
+        },
+        "description": "MỤC ĐÍCH: đăng nhập lấy JWT (SD01). Token tự lưu vào biến {{token}}.\nKẾT QUẢ ĐÚNG: 200, data có token + token_type Bearer + expires_in 1800 + redirect_url /academic/dashboard.\nMỚI: login giờ trả thêm refresh_token (sống 7 ngày), tự lưu vào {{refresh_token}}."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "const b = pm.response.json();",
+              "pm.test('Có token Bearer + expires_in 1800', () => {",
+              "  pm.expect(b.data.token).to.be.a('string');",
+              "  pm.expect(b.data.token_type).to.eql('Bearer');",
+              "  pm.expect(b.data.expires_in).to.eql(1800);",
+              "});",
+              "pm.test('Redirect đúng role ACADEMIC', () => {",
+              "  pm.expect(b.data.redirect_url).to.eql('/academic/dashboard');",
+              "});",
+              "if (b && b.data && b.data.token) pm.collectionVariables.set('token', b.data.token);",
+              "if (b && b.data && b.data.refresh_token) pm.collectionVariables.set('refresh_token', b.data.refresh_token);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "05-Login-sai-MK (đếm còn N lần)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          },
+          "raw": "{\n  \"username\": \"gv01\",\n  \"password\": \"sai12345\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            "login"
+          ]
+        },
+        "description": "MỤC ĐÍCH: test đếm sai + tự khóa (SD01, ngưỡng MAX_LOGIN_ATTEMPTS=5).\nCHÚ Ý: dùng user gv01 (do admin cấp ở request 11) thay vì hv_test — vì register public đã khóa nên hv_test không còn tạo mới được.\nSửa username trong body thành gv01 rồi Send: sai lần 1 → 401 'còn 4 lần'. Send thêm 4 lần → 403 ACCOUNT_LOCKED."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('401 còn N lần (hoặc 403 nếu đã khóa)', () => {",
+              "  pm.expect([401, 403]).to.include(pm.response.code);",
+              "  const b = pm.response.json();",
+              "  pm.expect(b.error).to.be.oneOf(['UNAUTHORIZED', 'ACCOUNT_LOCKED']);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "06-Verify-token (token còn hạn?)",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/auth/verify-token",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            "verify-token"
+          ]
+        },
+        "description": "MỤC ĐÍCH: client gọi khi mở app để biết token còn hạn không.\nKẾT QUẢ ĐÚNG: 200 {\"valid\": true, \"expires_in\": ~1799}.\nCASE LỖI: sửa token thành chữ bậy → 401 'Token không hợp lệ hoặc đã hết hạn.'."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 200 + valid true', () => {",
+              "  pm.response.to.have.status(200);",
+              "  pm.expect(pm.response.json().data.valid).to.eql(true);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "07-Me (không token → 401)",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/auth/me",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            "me"
+          ]
+        },
+        "description": "MỤC ĐÍCH: lấy danh tính hiện tại. Response KHÔNG được lộ failed_attempts/password_hash.\nKẾT QUẢ ĐÚNG: 200 + user {id, username, role...}.\nCASE LỖI: gỡ tab Auth (không gửi token) rồi Send → phải 401 UNAUTHORIZED."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "pm.test('Không lộ failed_attempts/password_hash', () => {",
+              "  const raw = pm.response.text();",
+              "  pm.expect(raw).to.not.include('failed_attempts');",
+              "  pm.expect(raw).to.not.include('password_hash');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "08-Profile-GET (hồ sơ cá nhân)",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/profile",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "profile"
+          ]
+        },
+        "description": "MỤC ĐÍCH: lấy hồ sơ cá nhân (SD02), mọi role đã login đều gọi được.\nKẾT QUẢ ĐÚNG: 200 + public_dict của chính mình."
+      }
+    },
+    {
+      "name": "09-Profile-PATCH (sửa SĐT)",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          },
+          "raw": "{\n  \"phone\": \"0900111222\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/profile",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "profile"
+          ]
+        },
+        "description": "MỤC ĐÍCH: tự cập nhật SĐT/email của mình.\nKẾT QUẢ ĐÚNG: 200 'Đã cập nhật hồ sơ.', phone mới hiện trong data."
+      }
+    },
+    {
+      "name": "10-Change-password-1-buoc (tuong thich cu)",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          },
+          "raw": "{\n  \"old_password\": \"Secret@123\",\n  \"new_password\": \"Secret@456Xy!\",\n  \"confirm_password\": \"Secret@456Xy!\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/profile/change-password",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "profile",
+            "change-password"
+          ]
+        },
+        "description": "MỤC ĐÍCH: đổi MK cá nhân (SD02), đang dùng token giaovu nên đổi MK của GIAOVU.\nMỚI: MK phải MẠNH (≥8 ký tự + Hoa + thường + số + đặc biệt). MK yếu → 400 (VD 'phải có ít nhất 1 chữ HOA').\nKẾT QUẢ ĐÚNG: 200 + audit CHANGE_PASSWORD + mail cảnh báo bảo mật.\nCHẠY LẠI LẦN 2: sửa old_password thành MK mới vừa đổi."
+      }
+    },
+    {
+      "name": "10a-Change-password-request (gui OTP ve mail)",
+      "request": {
+        "method": "POST",
+        "url": {
+          "raw": "{{baseUrl}}/profile/change-password/request",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "profile",
+            "change-password",
+            "request"
+          ]
+        },
+        "description": "MỤC ĐÍCH (Bước 1): check MK cũ + MK mạnh rồi gửi OTP 6 số về mail.\nKẾT QUẢ ĐÚNG: 200 + email_sent_status. Sai MK cũ → 401; MK yếu → 400.\nCopy 6 số sang 10b.",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          },
+          "raw": "{\n  \"old_password\": \"Admin@123\",\n  \"new_password\": \"DoiMoi@123Xy!\",\n  \"confirm_password\": \"DoiMoi@123Xy!\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 + OTP đã gửi', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10b-Change-password-confirm (nhap OTP)",
+      "request": {
+        "method": "POST",
+        "url": {
+          "raw": "{{baseUrl}}/profile/change-password/confirm",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "profile",
+            "change-password",
+            "confirm"
+          ]
+        },
+        "description": "MỤC ĐÍCH (Bước 2): nhập OTP 6 số + MK mới (phải GIỐNG MK ở 10a) → đổi thật.\nKẾT QUẢ ĐÚNG: 200 + audit CHANGE_PASSWORD + mail cảnh báo.\nOTP sai → 400 'còn N lần'. Endpoint 1 bước cũ (10) vẫn tương thích.",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          },
+          "raw": "{\n  \"otp_code\": \"DAN_6_SO_TU_MAIL_10a_VAO_DAY\",\n  \"new_password\": \"DoiMoi@123Xy!\",\n  \"confirm_password\": \"DoiMoi@123Xy!\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 hoặc 400 đều hợp lệ (tùy OTP)', () => {",
+              "  pm.expect([200, 400]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "11-Admin-cap-TEACHER (tu sinh MK + gui mail)",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          },
+          "raw": "{\n  \"username\": \"gv_moi\",\n  \"email\": \"gv_moi@mail.com\",\n  \"full_name\": \"GV Moi\",\n  \"role\": \"TEACHER\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/admin/users",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "admin",
+            "users"
+          ]
+        },
+        "description": "MỤC ĐÍCH: ACADEMIC cấp tài khoản (SD17). KHÔNG gửi password — server TỰ SINH MK tạm + gửi mail.\nCHỐT 1 ADMIN: role STAFF/TEACHER tạo thoải mái; role ACADEMIC thứ 2 → 422 'chỉ giữ 1 tài khoản Giáo vụ/Admin duy nhất'.\nKẾT QUẢ ĐÚNG: 201 + must_change_password=true + email_sent_status LOGGED (dev, xem console server) / SUCCESS (SMTP thật).\nCHẠY LẠI: đổi username/email."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('201 + must_change_password true', () => {",
+              "  pm.response.to.have.status(201);",
+              "  const b = pm.response.json();",
+              "  pm.expect(b.data.must_change_password).to.eql(true);",
+              "  pm.expect(b.data).to.not.have.property('password');",
+              "});",
+              "pm.test('201 (hoặc 409 nếu chạy lại)', () => {",
+              "  pm.expect([201, 409]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "12-Admin-list-users (TEACHER gọi → 403)",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/admin/users",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "admin",
+            "users"
+          ]
+        },
+        "description": "MỤC ĐÍCH: test RBAC — chỉ ACADEMIC được list user.\nKẾT QUẢ ĐÚNG (token giaovu): 200 + mảng user.\nCASE RBAC: login bằng gv01 lấy token khác, thay vào {{token}} rồi Send → phải 403 'yêu cầu quyền: ACADEMIC!'."
+      }
+    },
+    {
+      "name": "13-Admin-lock-user (chan tu khoa + giu 1 admin)",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          },
+          "raw": "{\n  \"is_locked\": true\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/admin/users/9/lock",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "admin",
+            "users",
+            "9",
+            "lock"
+          ]
+        },
+        "description": "MỤC ĐÍCH: ACADEMIC khóa/mở tài khoản + chốt an toàn.\nTRƯỚC KHI SEND: sửa số 9 trong URL thành user_id thật (lấy từ response request 11).\nKẾT QUẢ ĐÚNG: khóa user thường → 200 {is_locked: true}. Sau đó login user đó → 403.\nCHỐT 1: tự khóa chính mình (lấy id giaovu + token giaovu) → 400 'Không thể tự khóa...'.\nCHỐT 2: khóa ACADEMIC cuối cùng → 422 'phải giữ ít nhất 1 tài khoản Giáo vụ/Admin'.\nMỞ LẠI: đổi body thành {\"is_locked\": false} rồi Send → login lại được 200."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200/400/422 đều là kết quả hợp lệ của chốt an toàn', () => {",
+              "  pm.expect([200, 400, 422]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "14a-Refresh-token (access het 30p)",
+      "request": {
+        "method": "POST",
+        "url": {
+          "raw": "{{baseUrl}}/auth/refresh",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            "refresh"
+          ]
+        },
+        "description": "MỤC ĐÍCH: access hết 30p → đổi token mới bằng refresh (sống 7 ngày), không cần login lại.\nCÁCH TEST: mở Authorization, thay {{token}} bằng {{refresh_token}} rồi Send.\nKẾT QUẢ ĐÚNG: 200 + token mới. Refresh sai/hết hạn → 401 login lại.",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{refresh_token}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 + token mới', () => {",
+              "  pm.response.to.have.status(200);",
+              "  pm.expect(pm.response.json().data.token).to.be.a('string');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "14b-Forgot-password (xin ma qua mail)",
+      "request": {
+        "method": "POST",
+        "url": {
+          "raw": "{{baseUrl}}/auth/forgot-password",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            "forgot-password"
+          ]
+        },
+        "description": "MỤC ĐÍCH: quên MK tự phục vụ — nhập email/username → nhận mail OTP 6 SỐ (không còn token dài).\nKẾT QUẢ ĐÚNG: 200 chung cả khi mail đúng/sai (chống enumerate). Xem mã 6 số ở console server (LOGGED) hoặc hộp thư (SUCCESS).\nCopy mã 6 số sang request 14c (otp_code).",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          },
+          "raw": "{\n  \"email\": \"giaovu@school.local\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Luôn 200 (chống enumerate)', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "14c-Reset-password (dat lai bang ma)",
+      "request": {
+        "method": "POST",
+        "url": {
+          "raw": "{{baseUrl}}/auth/reset-password",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            "reset-password"
+          ]
+        },
+        "description": "MỤC ĐÍCH: đặt lại MK bằng OTP 6 số + MK mạnh. Thành công → mở khóa luôn + mail cảnh báo.\nTRƯỚC KHI SEND: thay otp_code bằng 6 số thật từ mail 14b.\nKẾT QUẢ ĐÚNG: 200. OTP sai → 400 'còn N lần'; hết hạn/dùng rồi → 400 'yêu cầu mã mới'; MK yếu → 400.",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          },
+          "raw": "{\n  \"email\": \"giaovu@school.local\",\n  \"otp_code\": \"DAN_6_SO_TU_MAIL_14b_VAO_DAY\",\n  \"new_password\": \"MoiManh@123\",\n  \"confirm_password\": \"MoiManh@123\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 hoặc 400 đều hợp lệ (tùy mã)', () => {",
+              "  pm.expect([200, 400]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "15-Logout",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "url": {
+          "raw": "{{baseUrl}}/auth/logout",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            "logout"
+          ]
+        },
+        "description": "MỤC ĐÍCH: đăng xuất (JWT stateless: client tự xóa token, server ghi audit LOGOUT).\nKẾT QUẢ ĐÚNG: 200 'Đăng xuất thành công'. Xong thì xóa biến {{token}} (chuột phải biến → xóa) để test case 'không token → 401'."
+      }
+    }
+  ]
+}
