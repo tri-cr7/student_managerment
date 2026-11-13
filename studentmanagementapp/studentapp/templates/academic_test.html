@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test Giáo vụ (Academic) — SD16/SD18/SD24/SD19/SD21/SD22/SD20/SD15/SD26/SD27</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, "Segoe UI", Roboto, sans-serif; background: #f1f5f9; margin: 0; padding: 16px; color: #1e293b; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: #64748b; font-size: 13px; margin-bottom: 12px; }
+  .bar { position: sticky; top: 0; background: #0f172a; color: #fff; padding: 10px 14px; border-radius: 10px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+  .bar input { padding: 7px 10px; border-radius: 6px; border: 1px solid #334155; background: #1e293b; color: #fff; }
+  .bar input::placeholder { color: #94a3b8; }
+  button { background: #2563eb; color: #fff; border: 0; border-radius: 6px; padding: 7px 12px; cursor: pointer; font-size: 13px; }
+  button:hover { background: #1d4ed8; }
+  button.ghost { background: #475569; }
+  button.danger { background: #dc2626; }
+  button.ok { background: #16a34a; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 12px; }
+  .card { background: #fff; border-radius: 10px; padding: 12px 14px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  .card h2 { font-size: 15px; margin: 0 0 8px; color: #0f172a; }
+  .card h2 .sd { display: inline-block; background: #e0e7ff; color: #3730a3; font-size: 11px; padding: 2px 8px; border-radius: 20px; margin-right: 6px; }
+  .row { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0; }
+  .row input, .row select, .row textarea { flex: 1 1 120px; padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; }
+  .row textarea { flex-basis: 100%; min-height: 44px; font-family: monospace; }
+  pre { background: #0f172a; color: #a5f3fc; border-radius: 8px; padding: 8px 10px; font-size: 11.5px; max-height: 260px; overflow: auto; white-space: pre-wrap; margin: 6px 0 0; }
+  .hint { font-size: 12px; color: #64748b; }
+  #token { font-size: 11px; color: #fde68a; word-break: break-all; }
+</style>
+</head>
+<body>
+<h1>🧪 Trang test thủ công — Giáo vụ (ACADEMIC)</h1>
+<div class="sub">Base: <code>/api/v1</code> · Đăng nhập bằng tài khoản Giáo vụ rồi test từng SD. Kết quả hiện ở ô đen dưới mỗi thẻ. Trang này chỉ để test tay, không ảnh hưởng API.</div>
+
+<div class="bar">
+  <input id="username" placeholder="username (vd: giaovu)" value="giaovu">
+  <input id="password" type="password" placeholder="mật khẩu" value="Admin@123">
+  <button onclick="doLogin()">Đăng nhập</button>
+  <button class="ghost" onclick="clearToken()">Xóa token</button>
+  <span id="token"></span>
+</div>
+
+<div class="grid">
+
+  <!-- SD16 -->
+  <div class="card">
+    <h2><span class="sd">SD16</span>Phân công giảng dạy</h2>
+    <div class="row">
+      <button onclick="call('GET','/assignments?page=1&limit=20','', 'r16')">GET /assignments (list)</button>
+      <button onclick="call('GET','/assignments/'+v('aid'),'','r16')">GET /assignments/{id}</button>
+    </div>
+    <div class="row">
+      <input id="f16" placeholder='{"teacher_id":2,"class_id":1,"subject_id":1,"semester_id":1}' value='{"teacher_id":2,"class_id":1,"subject_id":1,"semester_id":1}'>
+    </div>
+    <div class="row">
+      <button class="ok" onclick="call('POST','/assignments',v('f16'),'r16')">POST tạo</button>
+      <button onclick="call('PUT','/assignments/'+v('aid'),v('f16'),'r16')">PUT sửa</button>
+      <button class="danger" onclick="call('DELETE','/assignments/'+v('aid'),'','r16')">DELETE hủy</button>
+      <input id="aid" placeholder="assignment id" style="max-width:110px">
+    </div>
+    <div class="hint">Trùng (lớp–môn–kỳ) → 409 · Xóa khi đã có điểm → 422</div>
+    <pre id="r16">(chưa gọi)</pre>
+  </div>
+
+  <!-- SD18 -->
+  <div class="card">
+    <h2><span class="sd">SD18</span>Khóa / mở bảng điểm thủ công</h2>
+    <div class="row">
+      <button class="danger" onclick="call('PATCH','/assignments/'+v('aid2')+'/lock','{\"is_locked\":true}','r18')">Khóa</button>
+      <button class="ok" onclick="call('PATCH','/assignments/'+v('aid2')+'/lock','{\"is_locked\":false}','r18')">Mở khóa</button>
+      <input id="aid2" placeholder="assignment id" style="max-width:120px">
+    </div>
+    <div class="hint">Khóa xong GV sửa trực tiếp → 423, phải gửi phúc khảo (SD25).</div>
+    <pre id="r18">(chưa gọi)</pre>
+  </div>
+
+  <!-- SD24 -->
+  <div class="card">
+    <h2><span class="sd">SD24</span>Duyệt &amp; chốt bảng điểm</h2>
+    <div class="row">
+      <button onclick="call('GET','/score-submissions?status=PENDING&page=1&limit=20','','r24')">GET list PENDING</button>
+      <button onclick="call('GET','/score-submissions/'+v('sid'),'','r24')">GET chi tiết</button>
+    </div>
+    <div class="row">
+      <input id="sid" placeholder="submission id" style="max-width:120px">
+      <input id="snote" placeholder='review_note (lý do duyệt/từ chối)'>
+    </div>
+    <div class="row">
+      <button class="ok" onclick="call('PUT','/score-submissions/'+v('sid')+'/approve',JSON.stringify({review_note:v('snote')}),'r24')">Duyệt &amp; chốt</button>
+      <button class="danger" onclick="call('PUT','/score-submissions/'+v('sid')+'/reject',JSON.stringify({review_note:v('snote')||'Thiếu điểm, nhập bổ sung'}),'r24')">Từ chối</button>
+    </div>
+    <div class="hint">Duyệt: scores→chính thức + lock bảng (1 transaction). Từ chối: bắt buộc lý do.</div>
+    <pre id="r24">(chưa gọi)</pre>
+  </div>
+
+  <!-- SD19 -->
+  <div class="card">
+    <h2><span class="sd">SD19</span>Phê duyệt phúc khảo (từng ô)</h2>
+    <div class="row">
+      <button onclick="call('GET','/score-requests?status=PENDING','','r19')">GET list đơn PENDING</button>
+      <button onclick="call('GET','/score-requests/'+v('rid'),'','r19')">GET chi tiết</button>
+      <button onclick="call('GET','/score-requests/'+v('rid')+'/diff','','r19')">GET diff cũ↔mới</button>
+    </div>
+    <div class="row">
+      <input id="rid" placeholder="request id" style="max-width:110px">
+      <input id="did" placeholder="detail_id để duyệt 1 ô" style="max-width:150px">
+    </div>
+    <div class="row">
+      <textarea id="f19" placeholder='decisions[] — vd: {"decisions":[{"detail_id":1,"action":"APPROVE"}],"approval_note":"..."}'>{"approval_note":"Đã đối chiếu bài gốc"}</textarea>
+    </div>
+    <div class="row">
+      <button class="ok" onclick="call('PUT','/score-requests/'+v('rid')+'/approve',v('f19'),'r19')">Duyệt (từng ô)</button>
+      <button onclick="approveOne()">Duyệt 1 ô (detail_id trên)</button>
+      <button class="danger" onclick="call('PUT','/score-requests/'+v('rid')+'/reject',JSON.stringify({rejection_note:'Không đủ căn cứ, giữ nguyên điểm'}),'r19')">Từ chối cả đơn</button>
+    </div>
+    <div class="hint">Đơn lẻ: bỏ decisions cũng duyệt hết. Đơn lô: bắt buộc decisions, thiếu → 422 DECISIONS_REQUIRED.</div>
+    <pre id="r19">(chưa gọi)</pre>
+  </div>
+
+  <!-- SD21 -->
+  <div class="card">
+    <h2><span class="sd">SD21</span>Thay đổi quy định</h2>
+    <div class="row">
+      <button onclick="call('GET','/rules','','r21')">GET /rules (all)</button>
+      <button onclick="call('GET','/rules/MAX_CLASS_SIZE','','r21')">GET 1 rule</button>
+    </div>
+    <div class="row">
+      <input id="rk" placeholder="rule_key" value="MAX_CLASS_SIZE" style="max-width:150px">
+      <input id="rv" placeholder="rule_value" value="42" style="max-width:100px">
+      <button class="ok" onclick="call('PUT','/rules/'+v('rk'),JSON.stringify({rule_value:v('rv')}),'r21')">PUT 1 rule</button>
+    </div>
+    <div class="row">
+      <textarea id="f21bulk">{"rules":[{"rule_key":"MAX_CLASS_SIZE","rule_value":"40"},{"rule_key":"PASSING_SCORE","rule_value":"5.0"}]}</textarea>
+    </div>
+    <div class="row">
+      <button onclick="call('PUT','/rules/bulk',v('f21bulk'),'r21')">PUT /rules/bulk (atomic)</button>
+    </div>
+    <div class="hint">Sai logic (MIN_AGE≥MAX_AGE, PASSING ngoài [0,10]…) → 422, bulk rollback hết.</div>
+    <pre id="r21">(chưa gọi)</pre>
+  </div>
+
+  <!-- SD22 -->
+  <div class="card">
+    <h2><span class="sd">SD22</span>Quản lý môn học</h2>
+    <div class="row">
+      <button onclick="call('GET','/subjects?keyword='+encodeURIComponent(v('skw')),'','r22')">GET list (?keyword)</button>
+      <input id="skw" placeholder="keyword (vd: toan)" style="max-width:130px">
+      <input id="sgid" placeholder="grade_id lọc" style="max-width:90px">
+    </div>
+    <div class="row">
+      <textarea id="f22">{"subject_code":"LY10","subject_name":"Vật lý 10","grade_id":1,"periods_count":35}</textarea>
+    </div>
+    <div class="row">
+      <button class="ok" onclick="call('POST','/subjects',v('f22'),'r22')">POST tạo</button>
+      <button onclick="call('PUT','/subjects/'+v('sjid'),v('f22'),'r22')">PUT sửa</button>
+      <button class="danger" onclick="call('DELETE','/subjects/'+v('sjid'),'','r22')">DELETE</button>
+      <input id="sjid" placeholder="subject id" style="max-width:100px">
+    </div>
+    <div class="hint">Xóa môn đã có phân công → 422 SUBJECT_HAS_ASSIGNMENTS.</div>
+    <pre id="r22">(chưa gọi)</pre>
+  </div>
+
+  <!-- SD20 -->
+  <div class="card">
+    <h2><span class="sd">SD20</span>Báo cáo &amp; biểu đồ (YC4)</h2>
+    <div class="row">
+      <input id="rp_sub" placeholder="subject_id" style="max-width:100px">
+      <input id="rp_sem" placeholder="semester_id" style="max-width:110px">
+      <input id="rp_g" placeholder="grade_id (cho grade-summary)" style="max-width:150px">
+    </div>
+    <div class="row">
+      <button onclick="call('GET','/reports/subject-summary?subject_id='+v('rp_sub')+'&semester_id='+v('rp_sem'),'','r20')">subject-summary</button>
+      <button onclick="call('GET','/reports/chart-data?subject_id='+v('rp_sub')+'&semester_id='+v('rp_sem'),'','r20')">chart-data</button>
+      <button onclick="call('GET','/reports/grade-summary?grade_id='+v('rp_g')+'&semester_id='+v('rp_sem'),'','r20')">grade-summary</button>
+    </div>
+    <div class="row">
+      <button class="ghost" onclick="download('/reports/export/excel?subject_id='+v('rp_sub')+'&semester_id='+v('rp_sem'))">⬇ Excel</button>
+      <button class="ghost" onclick="download('/reports/export/pdf?subject_id='+v('rp_sub')+'&semester_id='+v('rp_sem'))">⬇ PDF</button>
+    </div>
+    <div class="hint">Chỉ đọc điểm chính thức (is_draft=FALSE), đạt ≥ PASSING_SCORE.</div>
+    <pre id="r20">(chưa gọi)</pre>
+  </div>
+
+  <!-- SD15 -->
+  <div class="card">
+    <h2><span class="sd">SD15</span>Nhật ký hệ thống</h2>
+    <div class="row">
+      <button onclick="call('GET','/admin/audit-logs?page=1&limit=20','','r15')">GET /admin/audit-logs</button>
+      <input id="alid" placeholder="log id (chi tiết)" style="max-width:140px">
+      <button onclick="call('GET','/admin/audit-logs/'+v('alid'),'','r15')">GET chi tiết</button>
+      <button class="ghost" onclick="download('/admin/audit-logs/export')">⬇ Excel</button>
+    </div>
+    <pre id="r15">(chưa gọi)</pre>
+  </div>
+
+  <!-- SD26 -->
+  <div class="card">
+    <h2><span class="sd">SD26</span>Năm học &amp; học kỳ</h2>
+    <div class="row">
+      <button onclick="call('GET','/academic-years','','r26')">GET years</button>
+      <button onclick="call('GET','/academic-years/current','','r26')">GET current year</button>
+      <button onclick="call('GET','/semesters?academic_year_id='+v('yid'),'','r26')">GET semesters</button>
+    </div>
+    <div class="row">
+      <input id="yid" placeholder="academic_year_id" style="max-width:130px">
+      <textarea id="f26y">{"year_name":"2027-2028","start_year":2027,"end_year":2028}</textarea>
+    </div>
+    <div class="row">
+      <button class="ok" onclick="call('POST','/academic-years',v('f26y'),'r26')">POST tạo năm</button>
+      <button onclick="call('PUT','/academic-years/'+v('yid')+'/current','','r26')">PUT đặt current</button>
+    </div>
+    <div class="row">
+      <textarea id="f26s">{"semester_name":"HK2","academic_year_id":1,"factor":2}</textarea>
+    </div>
+    <div class="row">
+      <button class="ok" onclick="call('POST','/semesters',v('f26s'),'r26')">POST tạo kỳ</button>
+      <input id="semid" placeholder="semester id" style="max-width:110px">
+      <button onclick="call('PUT','/semesters/'+v('semid')+'/current','','r26')">PUT đặt kỳ current</button>
+    </div>
+    <pre id="r26">(chưa gọi)</pre>
+  </div>
+
+  <!-- SD27 -->
+  <div class="card">
+    <h2><span class="sd">SD27</span>Lớp &amp; GVCN</h2>
+    <div class="row">
+      <button onclick="call('GET','/grades','','r27')">GET grades</button>
+      <button onclick="call('GET','/classes?page=1&limit=20','','r27')">GET classes</button>
+    </div>
+    <div class="row">
+      <input id="cid" placeholder="class id" style="max-width:100px">
+      <input id="tid" placeholder="teacher id (GVCN)" style="max-width:140px">
+      <button class="ok" onclick="call('PUT','/classes/'+v('cid')+'/homeroom',JSON.stringify({teacher_id:parseInt(v('tid'))||0}),'r27')">Gán GVCN</button>
+    </div>
+    <div class="hint">GVCN phải là TEACHER đang active, không bị khóa.</div>
+    <pre id="r27">(chưa gọi)</pre>
+  </div>
+
+</div>
+
+<script>
+const BASE = '/api/v1';
+let TOKEN = localStorage.getItem('gv_token') || '';
+showToken();
+function v(id){ return (document.getElementById(id).value || '').trim(); }
+function showToken(){ document.getElementById('token').textContent = TOKEN ? ('Token: ' + TOKEN.slice(0,24) + '…') : '(chưa đăng nhập)'; }
+function clearToken(){ TOKEN=''; localStorage.removeItem('gv_token'); showToken(); }
+async function doLogin(){
+  const r = await fetch(BASE + '/auth/login', { method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({username:v('username'), password:v('password')}) });
+  const b = await r.json().catch(()=>({}));
+  if (r.ok && (b.data?.token || b.token)) {
+    TOKEN = b.data.token || b.token;
+    localStorage.setItem('gv_token', TOKEN);
+    showToken();
+    alert('Đăng nhập OK (' + (b.data?.user?.role || b.data?.role || '') + ')');
+  } else {
+    alert('Đăng nhập thất bại [' + r.status + ']: ' + (b.message || b.error || JSON.stringify(b)));
+  }
+}
+async function call(method, path, body, outId){
+  const out = document.getElementById(outId);
+  out.textContent = method + ' ' + path + ' …';
+  try {
+    const opt = { method, headers:{} };
+    if (TOKEN) opt.headers['Authorization'] = 'Bearer ' + TOKEN;
+    if (body) { opt.headers['Content-Type'] = 'application/json'; opt.body = body; }
+    const r = await fetch(BASE + path, opt);
+    const txt = await r.text();
+    let pretty = txt;
+    try { pretty = JSON.stringify(JSON.parse(txt), null, 2); } catch(e) {}
+    if (pretty.length > 6000) pretty = pretty.slice(0,6000) + '\n… (đã cắt bớt)';
+    out.textContent = '[' + r.status + ']\n' + pretty;
+  } catch(e) { out.textContent = 'Lỗi mạng: ' + e; }
+}
+function approveOne(){
+  const did = v('did');
+  if (!did) { alert('Nhập detail_id trước'); return; }
+  call('PUT','/score-requests/'+v('rid')+'/approve',
+    JSON.stringify({decisions:[{detail_id:parseInt(did),action:'APPROVE'}]}),'r19');
+}
+async function download(path){
+  const a = document.createElement('a');
+  a.href = BASE + path + (TOKEN ? ((path.includes('?')?'&':'?') + 'jwt=' + encodeURIComponent(TOKEN)) : '');
+  // Thử fetch kèm token để tải file binary (server trả file nếu 200)
+  try {
+    const r = await fetch(BASE + path, { headers: TOKEN ? {Authorization:'Bearer '+TOKEN} : {} });
+    if (!r.ok) { const t = await r.text(); alert('Tải thất bại ['+r.status+']: '+t.slice(0,300)); return; }
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    a.href = url; a.download = path.split('/').pop().split('?')[0] || 'export';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 5000);
+  } catch(e) { alert('Lỗi tải: ' + e); }
+}
+</script>
+</body>
+</html>
