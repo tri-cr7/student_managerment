@@ -1,0 +1,121 @@
+{% extends 'layout/base.html' %}
+
+{% block title %}Tiếp nhận học sinh mới{% endblock %}
+
+{% block content %}
+<div class="container mt-5 mb-5">
+  <div class="row justify-content-center">
+    <div class="col-md-8">
+
+      <div class="card shadow-sm p-4">
+        <h3 class="mb-4 text-primary text-center">Tiếp nhận học sinh mới</h3>
+
+        <!-- Error/Success Alert Box -->
+        <div id="alertBox" class="alert d-none" role="alert"></div>
+
+        <form id="admitForm">
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label for="student_code" class="form-label">Mã học sinh (Student Code):</label>
+              <input type="text" class="form-control" id="student_code" name="student_code" placeholder="VD: HS001" required>
+            </div>
+            <div class="col-md-6 mb-3">
+              <label for="full_name" class="form-label">Họ và tên:</label>
+              <input type="text" class="form-control" id="full_name" name="full_name" placeholder="Nhập họ và tên" required>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label for="date_of_birth" class="form-label">Ngày sinh (15 - 20 tuổi):</label>
+              <input type="date" class="form-control" id="date_of_birth" name="date_of_birth" required>
+            </div>
+            <div class="col-md-6 mb-3">
+              <label for="gender" class="form-label">Giới tính:</label>
+              <select class="form-select" id="gender" name="gender">
+                <option value="Nam">Nam</option>
+                <option value="Nữ">Nữ</option>
+                <option value="Khác">Khác</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label for="email" class="form-label">Email:</label>
+              <input type="email" class="form-control" id="email" name="email" placeholder="student@school.local">
+            </div>
+            <div class="col-md-6 mb-3">
+              <label for="phone" class="form-label">Số điện thoại:</label>
+              <input type="text" class="form-control" id="phone" name="phone" placeholder="0901234567">
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label for="address" class="form-label">Địa chỉ:</label>
+            <textarea class="form-control" id="address" name="address" rows="2" placeholder="Nhập địa chỉ cư trú"></textarea>
+          </div>
+
+          <div class="d-flex justify-content-between mt-4">
+            <a href="{{ url_for('staff.render_student_ui') }}" class="btn btn-secondary">Quay lại danh sách</a>
+            <button type="submit" class="btn btn-primary px-4">Lưu học sinh</button>
+          </div>
+        </form>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  document.getElementById('admitForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const alertBox = document.getElementById('alertBox');
+    alertBox.classList.add('d-none');
+
+    const formData = {
+      student_code: document.getElementById('student_code').value.trim(),
+      full_name: document.getElementById('full_name').value.trim(),
+      date_of_birth: document.getElementById('date_of_birth').value,
+      gender: document.getElementById('gender').value,
+      email: document.getElementById('email').value.trim(),
+      phone: document.getElementById('phone').value.trim(),
+      address: document.getElementById('address').value.trim()
+    };
+
+    try {
+      // Matches your staff_controller.py route: /api/v1/students/admit
+      const response = await fetch('/api/v1/students/admit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(formData)
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        alertBox.className = 'alert alert-success';
+        alertBox.textContent = 'Tiếp nhận học sinh mới thành công!';
+        alertBox.classList.remove('d-none');
+        
+        document.getElementById('admitForm').reset();
+        
+        setTimeout(() => {
+          window.location.href = "{{ url_for('staff.render_student_ui') }}";
+        }, 1200);
+      } else {
+        alertBox.className = 'alert alert-danger';
+        alertBox.textContent = result.message || 'Có lỗi xảy ra.';
+        alertBox.classList.remove('d-none');
+      }
+    } catch (error) {
+      alertBox.className = 'alert alert-danger';
+      alertBox.textContent = 'Không thể kết nối đến máy chủ.';
+      alertBox.classList.remove('d-none');
+    }
+  });
+</script>
+{% endblock %}

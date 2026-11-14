@@ -262,12 +262,12 @@ def seed_demo(reset_scores=False):
         if u is None:
             u = User(username=username, email=email, full_name=full_name, role=role)
             db.session.add(u)
-            db.session.flush()
         # Luôn ép mật khẩu demo về giá trị cố định để test Postman ổn định.
         u.set_password(password)
         u.is_active = True
         u.is_locked = False
         u.failed_attempts = 0
+        db.session.flush()
         return u
 
     teacher = ensure_user(

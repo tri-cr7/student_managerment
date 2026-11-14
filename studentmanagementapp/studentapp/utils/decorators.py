@@ -82,3 +82,6 @@ def admin_required(fn):
 
 def teacher_required(fn):
     return role_required(UserRoleEnum.TEACHER, UserRoleEnum.ACADEMIC)(fn)
+
+def staff_required(fn):
+    return role_required(UserRoleEnum.STAFF, UserRoleEnum.ACADEMIC)(fn)

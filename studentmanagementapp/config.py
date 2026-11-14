@@ -10,7 +10,7 @@ class BaseConfig:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_DATABASE_URI = os.environ.get(
         "DATABASE_URL",
-        "mysql+pymysql://root:trine1234%40@localhost/studentmanagementdb?charset=utf8mb4",
+        "mysql+pymysql://root:root@localhost/studentmanagementdb?charset=utf8mb4",
     )
     JWT_SECRET_KEY = os.environ.get(
         "JWT_SECRET_KEY", "dev-jwt-secret-doi-o-env-cho-du-32-ky-tu-an-toan"
