@@ -15,7 +15,7 @@ from flask_jwt_extended import get_jwt_identity, verify_jwt_in_request
 
 from studentapp.exceptions import AppError
 from studentapp.services import student_service
-from studentapp.utils.decorators import staff_required
+from studentapp.utils.decorators import staff_required, role_required
 
 # url_prefix changed to "/api/v1" so it registers cleanly under /api/v1/students/...
 bp = Blueprint("staff", __name__, url_prefix="/api/v1")
@@ -68,7 +68,7 @@ def render_student_ui():
 # --------------------------------------------------------------------------- #
 
 @bp.get("/students")
-@staff_required
+@role_required("STAFF", "ACADEMIC")
 def list_students():
     """Danh sách học sinh phân trang và tìm kiếm đa tiêu chí."""
     try:
@@ -142,7 +142,7 @@ def update_student(student_id):
 # --------------------------------------------------------------------------- #
 
 @bp.patch("/students/<int:student_id>/status")
-@staff_required
+@role_required("STAFF", "ACADEMIC")
 def update_student_status(student_id):
     """Cập nhật trạng thái học tập (Đang học, Thôi học, Chuyển trường)."""
     try:

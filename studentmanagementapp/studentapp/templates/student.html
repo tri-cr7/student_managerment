@@ -15,10 +15,21 @@
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
         <div class="container py-2">
             <a class="navbar-brand fw-bold" href="#"><i class="bi bi-mortarboard-fill me-2"></i>School Manager</a>
-            <div class="d-flex gap-2">
+            <div class="d-flex gap-2 align-items-center">
+                <!-- Added Class Management Navigation Button -->
+                <a href="{{ url_for('auth_ui.classes_ui') }}" class="btn btn-outline-info btn-sm px-3">
+                    <i class="bi bi-building me-1"></i> Quản Lý Lớp Học
+                </a>
+
+                <div class="vr text-white-50 mx-1"></div>
+
                 <a href="/api/v1/students" class="btn btn-outline-light active btn-sm px-3"><i class="bi bi-search me-1"></i> Tra Cứu</a>
                 <a href="/api/v1/students/form" class="btn btn-primary btn-sm px-3"><i class="bi bi-person-plus-fill me-1"></i> Tiếp Nhận</a>
                 <button class="btn btn-outline-success btn-sm px-3" data-bs-toggle="modal" data-bs-target="#importModal"><i class="bi bi-file-earmark-arrow-up-fill me-1"></i> Xuất/Nhập File</button>
+
+                <div class="vr text-white-50 mx-1"></div>
+
+                <a href="/logout" class="btn btn-outline-danger btn-sm px-2" title="Đăng xuất"><i class="bi bi-box-arrow-right"></i></a>
             </div>
         </div>
     </nav>

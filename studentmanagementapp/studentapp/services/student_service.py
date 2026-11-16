@@ -4,7 +4,6 @@ from studentapp.models.student import Student, StudentStatusEnum
 from studentapp.repositories import student_repository
 from studentapp.exceptions import AppError
 
-//Sửa lại lớp này 1 chút.
 class StudentBusinessError(AppError):
     def __init__(self, message, error_code="STUDENT_ERROR", status_code=400):
         super().__init__(error=error_code, message=message)

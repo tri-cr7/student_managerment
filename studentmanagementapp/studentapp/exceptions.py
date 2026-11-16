@@ -151,3 +151,9 @@ class BusinessRuleError(AppError):
     status_code = 422
     error = "BUSINESS_RULE_VIOLATION"
     message = "Vi phạm quy chế nghiệp vụ."
+
+class StudentBusinessError(BusinessRuleError):
+    """422 — Vi phạm quy chế nghiệp vụ học sinh / lớp học."""
+    status_code = 422
+    error = "STUDENT_BUSINESS_RULE_VIOLATION"
+    message = "Vi phạm quy chế quản lý học sinh và lớp học."

@@ -1,0 +1,110 @@
+{% extends 'layout/base.html' %}
+
+{% block title %}Quản lý Lớp học{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <!-- Welcome Banner -->
+  <div class="p-4 mb-4 bg-light rounded-3 shadow-sm d-flex justify-content-between align-items-center">
+    <div>
+      <h1 class="display-6 fw-bold text-primary">Quản lý Lớp học & Khối lớp</h1>
+      <p class="mb-0 text-muted">Xin chào, <strong>{{ current_user.username }}</strong> (Vai trò: <span class="badge bg-secondary">{{ current_user.role.value }}</span>)</p>
+    </div>
+    <div>
+      <a href="/logout" class="btn btn-outline-danger btn-sm">Đăng xuất</a>
+    </div>
+  </div>
+
+  <!-- Main Content Grid -->
+  <div class="row">
+    <!-- Left Column: Grades & Classes List -->
+    <div class="col-md-8">
+      <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+          <h5 class="mb-0">Danh sách Lớp học hiện tại</h5>
+          {% if current_user.role.value in ['STAFF', 'ACADEMIC'] %}
+          <button class="btn btn-light btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#addClassModal">+ Thêm Lớp Mới</button>
+          {% endif %}
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle">
+              <thead class="table-light">
+                <tr>
+                  <th>Tên Lớp</th>
+                  <th>Khối</th>
+                  <th>Sĩ số</th>
+                  <th>Hành động</th>
+                </tr>
+              </thead>
+              <tbody id="classTableBody">
+                <!-- Data will be loaded via script or template rendering -->
+                <tr>
+                  <td colspan="4" class="text-center text-muted py-3">Đang tải danh sách lớp học...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Quick Stats / Navigation Links -->
+    <div class="col-md-4">
+      <div class="card shadow-sm mb-4">
+        <div class="card-header bg-secondary text-white">
+          <h5 class="mb-0">Điều hướng nhanh</h5>
+        </div>
+        <div class="card-body">
+          <div class="d-grid gap-2">
+            <a href="{{ url_for('auth_ui.list_all_classes') }}" class="btn btn-outline-primary text-start">📚 Xem tất cả Lớp học</a>
+
+            {% if current_user.role.value in ['STAFF', 'ACADEMIC'] %}
+            <!-- Added Link to the new Add Student to Class Page -->
+            <a href="{{ url_for('auth_ui.enroll_student_ui') }}" class="btn btn-outline-success text-start">➕ Thêm học sinh vào lớp (SD05)</a>
+            <a href="#" class="btn btn-outline-secondary text-start" data-bs-toggle="modal" data-bs-target="#transferModal">🔄 Điều chuyển học sinh (SD06)</a>
+            {% endif %}
+
+            <a href="/logout" class="btn btn-outline-danger text-start">🚪 Đăng xuất hệ thống</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Optional Frontend Script to fetch and render classes dynamically if using API endpoints -->
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+    fetch('/classes')
+      .then(response => response.json())
+      .then(result => {
+        if (result.success && result.data.length > 0) {
+          const tbody = document.getElementById('classTableBody');
+          tbody.innerHTML = '';
+          result.data.forEach(cls => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td class="fw-bold">${cls.class_name}</td>
+              <td>Khối ${cls.grade_id}</td>
+              <td>
+                <span class="badge ${cls.current_size >= 40 ? 'bg-danger' : 'bg-success'}">
+                  ${cls.current_size || 0} / 40
+                </span>
+              </td>
+              <td>
+                <a href="/classes/${cls.id}" class="btn btn-sm btn-info text-white">Chi tiết</a>
+              </td>
+            `;
+            tbody.appendChild(tr);
+          });
+        } else {
+          document.getElementById('classTableBody').innerHTML = `<tr><td colspan="4" class="text-center text-muted">Chưa có lớp học nào được tạo.</td></tr>`;
+        }
+      })
+      .catch(err => {
+        console.error('Error fetching classes:', err);
+      });
+  });
+</script>
+{% endblock %}

@@ -11,6 +11,7 @@ from studentapp.controllers import (
     teacher_controller,
     user_controller,
     staff_controller,
+    class_controller,
     main_controller
 )
 
@@ -26,5 +27,6 @@ ALL_BLUEPRINTS = [
     audit_controller.bp,
     academic_test_controller.bp,
     staff_controller.bp,
+    class_controller.bp,
     main_controller.bp
 ]
