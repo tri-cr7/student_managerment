@@ -1,10 +1,4 @@
-"""ENTITY score_change_requests — Đơn phúc khảo (đơn cha), SD25/SD19.
-
-Chỉ tạo được khi bảng điểm đã **CHỐT** (``teaching_assignments.is_locked = true``)
-⇒ mọi ô điểm đã ``NOT NULL`` ⇒ ``old_value`` **luôn có giá trị**.
-"""
 from studentapp.extensions import db
-
 
 class ChangeRequestStatusEnum:
     PENDING = "PENDING"
@@ -13,7 +7,6 @@ class ChangeRequestStatusEnum:
     PARTIALLY_APPROVED = "PARTIALLY_APPROVED"
 
     ALL = (PENDING, APPROVED, REJECTED, PARTIALLY_APPROVED)
-
 
 class ScoreChangeRequest(db.Model):
     __tablename__ = "score_change_requests"
@@ -39,7 +32,6 @@ class ScoreChangeRequest(db.Model):
     )
     resolved_at = db.Column(db.TIMESTAMP, nullable=True)
 
-    #: Khai báo quan hệ ở phía "cha" để cascade delete-orphan hoạt động đúng.
     details = db.relationship(
         "ScoreChangeDetail",
         back_populates="request",

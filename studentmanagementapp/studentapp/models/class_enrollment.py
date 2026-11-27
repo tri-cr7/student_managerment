@@ -1,13 +1,10 @@
-"""ENTITY class_enrollments — Danh sách học sinh thuộc lớp (Yêu cầu 2)."""
 import enum
 
 from studentapp.extensions import db
 
-
 class EnrollmentStatusEnum(enum.Enum):
     DANG_HOC = "DANG_HOC"
     DA_CHUYEN = "DA_CHUYEN"
-
 
 class ClassEnrollment(db.Model):
     __tablename__ = "class_enrollments"
@@ -22,8 +19,17 @@ class ClassEnrollment(db.Model):
     status = db.Column(
         db.Enum(EnrollmentStatusEnum), nullable=False, default=EnrollmentStatusEnum.DANG_HOC
     )
+
+    transfer_note = db.Column(db.String(255), nullable=True)
     created_at = db.Column(
         db.TIMESTAMP, nullable=False, server_default=db.func.current_timestamp()
+    )
+
+    __table_args__ = (
+        db.Index(
+            "idx_student_year_status", "student_id", "academic_year_id", "status"
+        ),
+        db.Index("idx_enrollment_class", "class_id", "status"),
     )
 
     student = db.relationship("Student", backref=db.backref("enrollments", lazy=True))

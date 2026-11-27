@@ -1,9 +1,3 @@
-"""Test fixtures — app, db, client, dữ liệu mẫu cho module Giáo viên.
-
-Nguyên tắc:
-* Mỗi test chạy trên DB sạch (SQLite in-memory, ``create_all`` mỗi lần) → độc lập.
-* Fixture seed tạo sẵn: Giáo viên, Giáo vụ, lớp + môn + assignment + học sinh.
-"""
 import os
 import sys
 
@@ -13,15 +7,14 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
-from config import config_by_name  # noqa: E402
-from studentapp import create_app  # noqa: E402
-from studentapp.extensions import db  # noqa: E402
-from studentapp.models.system_rule import SystemRule, DEFAULT_RULES  # noqa: E402
-
+from config import config_by_name
+from studentapp import create_app
+from studentapp.extensions import db
+from studentapp.models.system_rule import SystemRule, DEFAULT_RULES
 
 @pytest.fixture
 def app():
-    """App Flask cấu hình testing (SQLite in-memory, CSRF tắt)."""
+
     application = create_app("testing")
     with application.app_context():
         db.create_all()
@@ -29,7 +22,6 @@ def app():
         yield application
         db.session.remove()
         db.drop_all()
-
 
 def _seed_rules():
     for key, value, dtype, desc in DEFAULT_RULES:
@@ -39,24 +31,18 @@ def _seed_rules():
             )
     db.session.commit()
 
-
 @pytest.fixture
 def db_session(app):
-    """Session DB gắn với app context hiện tại."""
-    return db.session
 
+    return db.session
 
 @pytest.fixture
 def client(app):
     return app.test_client()
 
-
 @pytest.fixture
 def auth_headers(app):
-    """Cấp JWT token cho role theo yêu cầu.
 
-    Dùng: ``auth_headers("TEACHER")`` hoặc ``auth_headers("TEACHER", user_id=5)``.
-    """
     from flask_jwt_extended import create_access_token
 
     def _make(role="TEACHER", user_id=1):
@@ -68,24 +54,9 @@ def auth_headers(app):
 
     return _make
 
-
-# --------------------------------------------------------------------------- #
-# Dữ liệu mẫu cho module Giáo viên
-# --------------------------------------------------------------------------- #
-
-
 @pytest.fixture
 def seed_data(app):
-    """Tạo dữ liệu mẫu đầy đủ cho module điểm.
 
-    Cấu trúc:
-    * ``teacher``      — Giáo viên chính (id = teacher.id)
-    * ``other_teacher``— Giáo viên khác (dùng để test quyền sở hữu)
-    * ``academic``     — Giáo vụ
-    * ``assignment``   — 1 lớp môn học do ``teacher`` phụ trách
-    * ``other_assignment`` — 1 lớp môn học do ``other_teacher`` phụ trách
-    * ``students``     — 3 học sinh thuộc lớp của ``assignment``
-    """
     from datetime import date
 
     from studentapp.models.academic_year import AcademicYear
@@ -120,9 +91,12 @@ def seed_data(app):
     db.session.flush()
 
     sem_hk1 = Semester(
-        semester_name="Học kỳ 1", academic_year_id=year.id, factor=1, is_current=True
+        semester_name="HK1", academic_year_id=year.id, factor=1, is_current=True
     )
-    db.session.add(sem_hk1)
+    sem_hk2 = Semester(
+        semester_name="HK2", academic_year_id=year.id, factor=2, is_current=False
+    )
+    db.session.add_all([sem_hk1, sem_hk2])
     db.session.flush()
 
     subject = Subject(
@@ -184,6 +158,8 @@ def seed_data(app):
         "staff": staff,
         "academic_year": year,
         "semester": sem_hk1,
+        "semester_hk1": sem_hk1,
+        "semester_hk2": sem_hk2,
         "grade": grade,
         "subject": subject,
         "class": class_a,

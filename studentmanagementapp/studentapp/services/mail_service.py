@@ -1,4 +1,3 @@
-"""SERVICE gửi mail — SD17."""
 import logging
 import smtplib
 from email.mime.multipart import MIMEMultipart
@@ -8,13 +7,11 @@ from flask import current_app
 
 log = logging.getLogger(__name__)
 
-
 def _cfg(key, default=None):
     try:
         return current_app.config.get(key, default)
     except Exception:
         return default
-
 
 def _send_smtp(to_email: str, subject: str, html_body: str, text_body: str = "") -> str:
     server = _cfg("MAIL_SERVER", "")
@@ -45,9 +42,7 @@ def _send_smtp(to_email: str, subject: str, html_body: str, text_body: str = "")
         log.warning("Gửi mail thất bại to=%s: %s", to_email, e)
         return "FAILED"
 
-
 ACCOUNT_MAIL_SUBJECT = "[StudentApp] Thông tin tài khoản đăng nhập của bạn"
-
 
 def account_body(full_name: str, username: str, temp_password: str, role: str):
     text = (
@@ -71,14 +66,11 @@ def account_body(full_name: str, username: str, temp_password: str, role: str):
     )
     return html, text
 
-
 def send_account_email(to_email: str, full_name: str, username: str, temp_password: str, role: str) -> str:
     html, text = account_body(full_name, username, temp_password, role)
     return _send_smtp(to_email, ACCOUNT_MAIL_SUBJECT, html, text)
 
-
 PASSWORD_CHANGED_SUBJECT = "[StudentApp] Mật khẩu của bạn vừa được thay đổi"
-
 
 def password_changed_body(full_name: str, username: str, when_str: str | None = None, ip: str | None = None):
     when_str = when_str or ""
@@ -101,16 +93,13 @@ def password_changed_body(full_name: str, username: str, when_str: str | None = 
     )
     return html, text
 
-
 def send_password_changed_email(
     to_email: str, full_name: str, username: str, when_str: str | None = None, ip: str | None = None
 ) -> str:
     html, text = password_changed_body(full_name, username, when_str, ip)
     return _send_smtp(to_email, PASSWORD_CHANGED_SUBJECT, html, text)
 
-
 OTP_SUBJECT = "[StudentApp] Mã OTP đổi/quên mật khẩu của bạn"
-
 
 def otp_body(full_name: str, username: str, code: str, expire_minutes: int = 5, action: str = "đặt lại mật khẩu"):
     text = (
@@ -133,7 +122,6 @@ def otp_body(full_name: str, username: str, code: str, expire_minutes: int = 5, 
         f"<p>Trân trọng,<br/>Phòng Giáo vụ</p>"
     )
     return html, text
-
 
 def send_otp_email(
     to_email: str, full_name: str, username: str, code: str, expire_minutes: int = 5, action: str = "đặt lại mật khẩu"

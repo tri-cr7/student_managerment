@@ -1,27 +1,29 @@
-"""SERVICE OTP 6 số qua mail — dùng chung cho quên MK (FORGOT) + đổi MK (CHANGE)."""
 import secrets
 from datetime import datetime, timedelta
 
-from flask import request as freq
-
 from studentapp.extensions import db
-from studentapp.models.audit_log import AuditLog
 from studentapp.models.password_otp import PasswordOtp
 from studentapp.repositories import system_rule_repository as rules
 from studentapp.exceptions import ValidationError
-
+from studentapp.utils.audit import client_ip, write_audit
 
 def _expire_minutes() -> int:
     return rules.get_int("OTP_EXPIRE_MINUTES", 5)
 
-
 def _max_attempts() -> int:
     return rules.get_int("OTP_MAX_ATTEMPTS", 5)
-
 
 def _gen_code() -> str:
     return f"{secrets.randbelow(1_000_000):06d}"
 
+def _dev_mode() -> bool:
+
+    try:
+        from flask import current_app
+
+        return bool(current_app.config.get("MAIL_DEV_MODE", False))
+    except Exception:
+        return False
 
 def request_otp(user, purpose: str) -> tuple[str, str]:
     from studentapp.services import mail_service
@@ -37,13 +39,7 @@ def request_otp(user, purpose: str) -> tuple[str, str]:
         expires_at=datetime.utcnow() + timedelta(minutes=_expire_minutes()),
     )
     db.session.add(otp)
-    db.session.add(
-        AuditLog(
-            user_id=user.id,
-            action=f"OTP_REQUEST_{purpose}",
-            ip_address=freq.remote_addr if freq else None,
-        )
-    )
+    write_audit(user.id, f"OTP_REQUEST_{purpose}")
     db.session.commit()
     status = mail_service.send_otp_email(
         user.email,
@@ -53,10 +49,13 @@ def request_otp(user, purpose: str) -> tuple[str, str]:
         _expire_minutes(),
         "đổi mật khẩu" if purpose == "CHANGE" else "đặt lại mật khẩu",
     )
+    if status == "FAILED" and _dev_mode():
+
+        status = "DEV"
     return code, status
 
+def verify_and_consume(user_id: int, purpose: str, code: str, consume: bool = True) -> PasswordOtp:
 
-def verify_and_consume(user_id: int, purpose: str, code: str) -> PasswordOtp:
     code = (code or "").strip()
     if not code:
         raise ValidationError("Vui lòng nhập mã OTP 6 số từ email.")
@@ -75,13 +74,7 @@ def verify_and_consume(user_id: int, purpose: str, code: str) -> PasswordOtp:
         otp.attempts = (otp.attempts or 0) + 1
         if otp.attempts >= _max_attempts():
             otp.used = True
-            db.session.add(
-                AuditLog(
-                    user_id=user_id,
-                    action=f"OTP_LOCKED_{purpose}",
-                    ip_address=freq.remote_addr if freq else None,
-                )
-            )
+            write_audit(user_id, f"OTP_LOCKED_{purpose}")
             db.session.commit()
             raise ValidationError(
                 f"Nhập sai OTP quá {_max_attempts()} lần — mã đã bị hủy. Vui lòng yêu cầu mã mới."
@@ -89,7 +82,8 @@ def verify_and_consume(user_id: int, purpose: str, code: str) -> PasswordOtp:
         db.session.commit()
         remaining = _max_attempts() - otp.attempts
         raise ValidationError(f"Mã OTP không đúng. Bạn còn {remaining} lần thử!")
-    otp.used = True
-    otp.attempts = otp.attempts or 0
-    db.session.commit()
+    if consume:
+        otp.used = True
+        otp.attempts = otp.attempts or 0
+        db.session.commit()
     return otp

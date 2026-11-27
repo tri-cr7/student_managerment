@@ -1,40 +1,32 @@
-"""REPOSITORY class_enrollment — danh sách học sinh thuộc lớp."""
 from studentapp.extensions import db
 from studentapp.models.class_enrollment import ClassEnrollment, EnrollmentStatusEnum
+from studentapp.models.student import Student
 
+def _not_deleted(q):
 
-def list_student_ids_by_class(class_id, only_active=True):
-    """Danh sách ID học sinh đang học trong một lớp."""
+    return q.filter(
+        ClassEnrollment.student_id.in_(
+            db.session.query(Student.id).filter(Student.is_deleted.is_(False))
+        )
+    )
+
+def list_student_ids_by_class(class_id, only_active=True, academic_year_id=None):
+
     q = ClassEnrollment.query.filter_by(class_id=int(class_id))
     if only_active:
         q = q.filter_by(status=EnrollmentStatusEnum.DANG_HOC)
+    if academic_year_id not in (None, ""):
+        q = q.filter_by(academic_year_id=int(academic_year_id))
+    q = _not_deleted(q)
     return [e.student_id for e in q.order_by(ClassEnrollment.id).all()]
 
+def list_enrolled_student_ids_by_class(class_id, academic_year_id=None):
 
-def list_by_class(class_id, only_active=True):
-    q = ClassEnrollment.query.filter_by(class_id=int(class_id))
-    if only_active:
-        q = q.filter_by(status=EnrollmentStatusEnum.DANG_HOC)
-    return q.order_by(ClassEnrollment.id).all()
-
-
-def is_student_in_class(student_id, class_id) -> bool:
-    """Kiểm tra học sinh có thuộc lớp (dùng cho rule A6)."""
-    return (
-        ClassEnrollment.query.filter_by(
-            student_id=int(student_id),
-            class_id=int(class_id),
-            status=EnrollmentStatusEnum.DANG_HOC,
-        ).count()
-        > 0
+    return list_student_ids_by_class(
+        class_id, only_active=True, academic_year_id=academic_year_id
     )
 
+def list_all_class_ids_by_student(student_id):
 
-def list_class_ids_by_student(student_id, academic_year_id=None):
-    """Các lớp mà một học sinh đang học."""
-    q = ClassEnrollment.query.filter_by(
-        student_id=int(student_id), status=EnrollmentStatusEnum.DANG_HOC
-    )
-    if academic_year_id:
-        q = q.filter_by(academic_year_id=int(academic_year_id))
-    return [e.class_id for e in q.all()]
+    q = ClassEnrollment.query.filter_by(student_id=int(student_id))
+    return sorted({int(e.class_id) for e in q.all()})

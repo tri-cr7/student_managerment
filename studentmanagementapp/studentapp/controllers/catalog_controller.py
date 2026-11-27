@@ -1,24 +1,17 @@
-"""CONTROLLER catalog — SD21 rules, SD22 subjects, SD26 years/semesters, SD27 GVCN.
-
-Thứ tự khai báo route tĩnh trước route /{id} để Flask không nuốt.
-"""
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt_identity, verify_jwt_in_request
 
 from studentapp.exceptions import AppError
 from studentapp.services import catalog_service
-from studentapp.utils.decorators import admin_required, login_required_any
+from studentapp.utils.decorators import admin_required, login_required_any, role_required
 
 bp = Blueprint("catalog", __name__, url_prefix="/api/v1")
-
 
 def _err(e: AppError):
     return jsonify({"error": e.error, "message": e.message}), e.status_code
 
-
 def _ok(data=None, message="OK", status=200):
     return jsonify({"success": True, "message": message, "data": data}), status
-
 
 def _actor_id():
     try:
@@ -37,11 +30,6 @@ def _actor_id():
         pass
     return None
 
-
-# --------------------------------------------------------------------------- #
-# SD21 — Quy định
-# --------------------------------------------------------------------------- #
-
 @bp.get("/rules")
 @login_required_any
 def list_rules():
@@ -49,7 +37,6 @@ def list_rules():
         return _ok(catalog_service.list_rules(), "Danh sách quy định.")
     except AppError as e:
         return _err(e)
-
 
 @bp.put("/rules/bulk")
 @admin_required
@@ -62,7 +49,6 @@ def bulk_rules():
     except AppError as e:
         return _err(e)
 
-
 @bp.get("/rules/<rule_key>")
 @login_required_any
 def get_rule(rule_key):
@@ -71,7 +57,6 @@ def get_rule(rule_key):
                     "Chi tiết quy định.")
     except AppError as e:
         return _err(e)
-
 
 @bp.put("/rules/<rule_key>")
 @admin_required
@@ -85,11 +70,6 @@ def update_rule(rule_key):
     except AppError as e:
         return _err(e)
 
-
-# --------------------------------------------------------------------------- #
-# SD22 — Môn học (route tĩnh /grade/* trước /<id>)
-# --------------------------------------------------------------------------- #
-
 @bp.get("/subjects")
 @login_required_any
 def list_subjects():
@@ -102,7 +82,6 @@ def list_subjects():
     except AppError as e:
         return _err(e)
 
-
 @bp.get("/subjects/grade/<grade_id>")
 @login_required_any
 def subjects_by_grade(grade_id):
@@ -113,7 +92,6 @@ def subjects_by_grade(grade_id):
     except AppError as e:
         return _err(e)
 
-
 @bp.get("/subjects/<int:subject_id>")
 @login_required_any
 def get_subject(subject_id):
@@ -121,7 +99,6 @@ def get_subject(subject_id):
         return _ok(catalog_service.get_subject(subject_id), "Chi tiết môn học.")
     except AppError as e:
         return _err(e)
-
 
 @bp.post("/subjects")
 @admin_required
@@ -132,7 +109,6 @@ def create_subject():
         return _ok(data, "Thêm môn học mới thành công.", 201)
     except AppError as e:
         return _err(e)
-
 
 @bp.put("/subjects/<int:subject_id>")
 @admin_required
@@ -145,7 +121,6 @@ def update_subject(subject_id):
     except AppError as e:
         return _err(e)
 
-
 @bp.delete("/subjects/<int:subject_id>")
 @admin_required
 def delete_subject(subject_id):
@@ -155,11 +130,6 @@ def delete_subject(subject_id):
     except AppError as e:
         return _err(e)
 
-
-# --------------------------------------------------------------------------- #
-# SD26 — Năm học & học kỳ (route tĩnh /current trước /<id>)
-# --------------------------------------------------------------------------- #
-
 @bp.get("/academic-years")
 @login_required_any
 def list_years():
@@ -168,7 +138,6 @@ def list_years():
     except AppError as e:
         return _err(e)
 
-
 @bp.get("/academic-years/current")
 @login_required_any
 def current_year():
@@ -176,7 +145,6 @@ def current_year():
         return _ok(catalog_service.get_current_year(), "Năm học hiện hành.")
     except AppError as e:
         return _err(e)
-
 
 @bp.post("/academic-years")
 @admin_required
@@ -188,7 +156,6 @@ def create_year():
     except AppError as e:
         return _err(e)
 
-
 @bp.put("/academic-years/<int:year_id>/current")
 @admin_required
 def set_current_year(year_id):
@@ -197,7 +164,6 @@ def set_current_year(year_id):
         return _ok(data, "Đã đặt năm học hiện hành.")
     except AppError as e:
         return _err(e)
-
 
 @bp.get("/semesters")
 @login_required_any
@@ -209,15 +175,15 @@ def list_semesters():
     except AppError as e:
         return _err(e)
 
-
 @bp.get("/semesters/current")
 @login_required_any
 def current_semester():
     try:
-        return _ok(catalog_service.get_current_semester(), "Học kỳ hiện hành.")
+        data = catalog_service.get_current_semester(
+            academic_year_id=request.args.get("academic_year_id"))
+        return _ok(data, "Học kỳ hiện hành.")
     except AppError as e:
         return _err(e)
-
 
 @bp.post("/semesters")
 @admin_required
@@ -229,7 +195,6 @@ def create_semester():
     except AppError as e:
         return _err(e)
 
-
 @bp.put("/semesters/<int:semester_id>/current")
 @admin_required
 def set_current_semester(semester_id):
@@ -240,11 +205,6 @@ def set_current_semester(semester_id):
     except AppError as e:
         return _err(e)
 
-
-# --------------------------------------------------------------------------- #
-# SD27 + danh mục grades/classes
-# --------------------------------------------------------------------------- #
-
 @bp.get("/grades")
 @login_required_any
 def list_grades():
@@ -252,7 +212,6 @@ def list_grades():
         return _ok(catalog_service.list_grades(), "Danh sách khối lớp.")
     except AppError as e:
         return _err(e)
-
 
 @bp.get("/grades/<grade_id>/classes")
 @login_required_any
@@ -262,7 +221,6 @@ def classes_by_grade(grade_id):
         return _ok(data, "Danh sách lớp thuộc khối.")
     except AppError as e:
         return _err(e)
-
 
 @bp.get("/classes")
 @login_required_any
@@ -277,6 +235,14 @@ def list_classes():
     except AppError as e:
         return _err(e)
 
+@bp.get("/teachers")
+@role_required("STAFF", "ACADEMIC")
+def list_teachers():
+
+    try:
+        return _ok(catalog_service.list_teachers(), "Danh sách giáo viên.")
+    except AppError as e:
+        return _err(e)
 
 @bp.get("/classes/<int:class_id>")
 @login_required_any
@@ -285,7 +251,6 @@ def get_class(class_id):
         return _ok(catalog_service.get_class(class_id), "Chi tiết lớp học.")
     except AppError as e:
         return _err(e)
-
 
 @bp.put("/classes/<int:class_id>/homeroom")
 @admin_required

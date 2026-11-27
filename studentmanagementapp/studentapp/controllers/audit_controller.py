@@ -1,4 +1,3 @@
-"""CONTROLLER audit — SD15 tra cứu nhật ký hệ thống (JSON API cho Giáo vụ)."""
 from flask import Blueprint, jsonify, request, Response
 
 from studentapp.exceptions import AppError
@@ -9,14 +8,11 @@ from studentapp.utils.decorators import admin_required
 
 bp = Blueprint("audit", __name__, url_prefix="/api/v1/admin/audit-logs")
 
-
 def _err(e: AppError):
     return jsonify({"error": e.error, "message": e.message}), e.status_code
 
-
 def _ok(data=None, message="OK", status=200):
     return jsonify({"success": True, "message": message, "data": data}), status
-
 
 def _serialize(log: AuditLog):
     user = db.session.get(User, log.user_id) if log.user_id else None
@@ -29,7 +25,6 @@ def _serialize(log: AuditLog):
         "details": log.details,
         "created_at": log.created_at.isoformat() if log.created_at else None,
     }
-
 
 @bp.get("")
 @admin_required
@@ -56,6 +51,31 @@ def list_logs():
     except AppError as e:
         return _err(e)
 
+@bp.get("/actions")
+@admin_required
+def list_actions():
+
+    try:
+        from sqlalchemy import func
+
+        rows = (
+            db.session.query(AuditLog.action, func.count(AuditLog.id))
+            .group_by(AuditLog.action)
+            .order_by(func.count(AuditLog.id).desc())
+            .all()
+        )
+        return _ok(
+            {
+                "actions": [
+                    {"action": action, "count": count}
+                    for action, count in rows
+                    if action
+                ]
+            },
+            "Danh sách hành động.",
+        )
+    except AppError as e:
+        return _err(e)
 
 @bp.get("/export")
 @admin_required
@@ -92,7 +112,6 @@ def export_logs():
             headers={"Content-Disposition": "attachment; filename=audit-logs.xlsx"})
     except AppError as e:
         return _err(e)
-
 
 @bp.get("/<int:log_id>")
 @admin_required

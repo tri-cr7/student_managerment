@@ -1,6 +1,4 @@
-"""ENTITY system_rules."""
 from studentapp.extensions import db
-
 
 class SystemRule(db.Model):
     __tablename__ = "system_rules"
@@ -32,7 +30,6 @@ class SystemRule(db.Model):
             return str(v).strip().lower() in ("1", "true", "yes")
         return v
 
-
 DEFAULT_RULES = [
     ("MIN_AGE", "15", "INT", "Do tuoi toi thieu khi tiep nhan hoc sinh (YC 1)"),
     ("MAX_AGE", "20", "INT", "Do tuoi toi da khi tiep nhan hoc sinh (YC 1)"),
@@ -44,6 +41,7 @@ DEFAULT_RULES = [
     ("NUM_COL_FINAL", "1", "INT", "So cot diem thi hoc ky bat buoc (YC 3)"),
     ("PASSING_SCORE", "5.0", "FLOAT", "Diem chuan xep loai Dat mon hoc (YC 4)"),
     ("MAX_LOGIN_ATTEMPTS", "5", "INT", "So lan nhap sai MK toi da truoc khi khoa TK"),
+    ("LOCK_DURATION_MINUTES", "30", "INT", "Thoi gian tam khoa TK (phut) truoc khi tu mo khoa"),
     ("OTP_EXPIRE_MINUTES", "5", "INT", "Thoi gian song OTP 6 so (phut)"),
     ("OTP_MAX_ATTEMPTS", "5", "INT", "So lan nhap sai OTP toi da truoc khi huy ma"),
 ]

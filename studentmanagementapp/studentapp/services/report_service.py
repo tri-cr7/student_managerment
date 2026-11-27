@@ -1,16 +1,9 @@
-"""SERVICE report — SD20 báo cáo tổng kết môn học (Yêu cầu 4).
-
-Nguyên tắc đọc điểm: chỉ điểm CHÍNH THỨC (WHERE is_draft = FALSE).
-Ngưỡng đạt đọc động từ system_rules.PASSING_SCORE.
-"""
 from studentapp.extensions import db
-
 
 def _passing_score() -> float:
     from studentapp.repositories import system_rule_repository
 
     return system_rule_repository.get_float("PASSING_SCORE", 5.0)
-
 
 def _resolve_scope(subject_id, semester_id):
     from studentapp.models.semester import Semester
@@ -36,9 +29,8 @@ def _resolve_scope(subject_id, semester_id):
         raise NotFoundError("Không tìm thấy học kỳ.")
     return subject, semester
 
-
 def subject_summary(subject_id, semester_id):
-    """Báo cáo tổng kết môn: từng lớp (sĩ số, số đạt, tỷ lệ %)."""
+
     from studentapp.models.class_room import Class
     from studentapp.models.score import Score
     from studentapp.models.teaching_assignment import TeachingAssignment
@@ -86,9 +78,8 @@ def subject_summary(subject_id, semester_id):
         "summary": summary,
     }
 
-
 def chart_data(subject_id, semester_id, chart_type="bar"):
-    """Dữ liệu JSON chuẩn cho Chart.js (cột + tròn)."""
+
     data = subject_summary(subject_id, semester_id)
     labels = [r["class_name"] for r in data["summary"]]
     rates = [r["pass_rate"] for r in data["summary"]]
@@ -111,9 +102,8 @@ def chart_data(subject_id, semester_id, chart_type="bar"):
                     "scales": {"y": {"beginAtZero": True, "max": 100}}},
     }
 
-
 def grade_summary(grade_id, semester_id):
-    """Thống kê tổng kết chung theo khối: gộp các môn của khối trong kỳ."""
+
     from studentapp.models.subject import Subject
 
     try:
@@ -145,9 +135,8 @@ def grade_summary(grade_id, semester_id):
         "per_subject": per_subject,
     }
 
-
 def build_excel(subject_id, semester_id):
-    """Xuất báo cáo tổng kết môn ra Excel (openpyxl) → bytes."""
+
     from openpyxl import Workbook
     from openpyxl.styles import Alignment, Font
 
@@ -174,9 +163,8 @@ def build_excel(subject_id, semester_id):
     wb.save(buf)
     return buf.getvalue(), data
 
-
 def build_pdf(subject_id, semester_id):
-    """Xuất báo cáo tổng kết môn ra PDF (reportlab) → bytes."""
+
     import io
 
     from reportlab.lib.pagesizes import A4

@@ -1,7 +1,5 @@
-"""SERVICE teacher — nghiệp vụ dùng chung cho module Giáo viên."""
 from studentapp.exceptions import NotFoundError, PermissionDeniedError
 from studentapp.repositories import teaching_assignment_repository
-
 
 def _get_assignment_or_404(assignment_id):
     assignment = teaching_assignment_repository.get_by_id(assignment_id)
@@ -9,12 +7,8 @@ def _get_assignment_or_404(assignment_id):
         raise NotFoundError("Không tìm thấy lớp môn học (phân công giảng dạy).")
     return assignment
 
-
 def ensure_teacher_owns_assignment(assignment_id, teacher_id):
-    """Kiểm tra Giáo viên có phụ trách lớp môn học này không (rule A7/A11).
 
-    :raises PermissionDeniedError: nếu GV không phụ trách assignment.
-    """
     assignment = _get_assignment_or_404(assignment_id)
     if int(assignment.teacher_id) != int(teacher_id):
         raise PermissionDeniedError(
@@ -22,9 +16,8 @@ def ensure_teacher_owns_assignment(assignment_id, teacher_id):
         )
     return assignment
 
-
 def ensure_assignment_open(assignment):
-    """Bảng điểm phải đang MỞ (chưa chốt) để nhập/sửa điểm trực tiếp (rule A8)."""
+
     from studentapp.exceptions import ScoreTableLockedError
 
     if assignment.is_locked:
@@ -34,9 +27,8 @@ def ensure_assignment_open(assignment):
         )
     return assignment
 
-
 def ensure_no_pending_submission(assignment_id):
-    """Không có đơn gửi duyệt đang PENDING thì mới sửa điểm được (rule A10)."""
+
     from studentapp.exceptions import ScoreSubmissionPendingError
 
     pending = teaching_assignment_repository.get_pending_submission(assignment_id)
@@ -47,9 +39,46 @@ def ensure_no_pending_submission(assignment_id):
         )
     return True
 
-
 def list_my_assignments(teacher_id, semester_id=None, academic_year_id=None):
-    """Danh sách lớp môn học GV phụ trách (SD09)."""
+
     return teaching_assignment_repository.list_by_teacher(
         teacher_id, semester_id=semester_id, academic_year_id=academic_year_id
     )
+
+def ensure_teacher_owns_class_subject(teacher_id, class_id, subject_id,
+                                     academic_year_id=None):
+
+    assignments = teaching_assignment_repository.list_by_teacher(
+        teacher_id, academic_year_id=academic_year_id
+    )
+    for a in assignments:
+        if int(a.class_id) == int(class_id) and int(a.subject_id) == int(subject_id):
+            return a
+    raise PermissionDeniedError(
+        "Bạn không phụ trách môn học này ở lớp đó nên không được xem/xuất "
+        "điểm trung bình lớp!"
+    )
+
+def list_teacher_class_ids(teacher_id):
+
+    return sorted({int(a.class_id) for a in list_my_assignments(teacher_id)})
+
+def ensure_teacher_can_view_student(teacher_id, student_id):
+
+    from studentapp.repositories import class_enrollment_repository
+
+    my_class_ids = set(list_teacher_class_ids(teacher_id))
+    if not my_class_ids:
+        raise PermissionDeniedError(
+            "Bạn chưa được phân công lớp môn học nào nên không được xem hồ sơ "
+            "học sinh."
+        )
+    student_class_ids = set(
+        class_enrollment_repository.list_all_class_ids_by_student(student_id)
+    )
+    if not (student_class_ids & my_class_ids):
+        raise PermissionDeniedError(
+            "Học sinh này không thuộc lớp bạn phụ trách nên bạn không được xem "
+            "hồ sơ!"
+        )
+    return True

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Không tìm thấy trang — Hệ thống Quản lý Học sinh</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/tokens.css">
+<link rel="stylesheet" href="/assets/css/base.css">
+<link rel="stylesheet" href="/assets/css/layout.css">
+<link rel="stylesheet" href="/assets/css/components.css">
+<link rel="stylesheet" href="/assets/css/pages.css">
+</head>
+<body>
+
+<div class="error-page">
+  <div>
+    <div class="error-page__icon" data-icon></div>
+    <div class="t-mono t-tertiary" style="margin-bottom:8px">Mã lỗi: 404 — NOT_FOUND</div>
+    <h1 class="error-page__title">Không tìm thấy trang</h1>
+    <p class="error-page__message">
+      Trang bạn đang truy cập không tồn tại hoặc đã được chuyển sang vị trí khác.
+      Kiểm tra lại đường dẫn hoặc quay về trang chủ.
+    </p>
+    <div class="error-page__action">
+      <a class="btn btn--primary" href="/index.html">Về trang chủ</a>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { icon } from "/assets/js/ui.js";
+  document.querySelector("[data-icon]").innerHTML = icon("file");
+</script>
+</body>
+</html>

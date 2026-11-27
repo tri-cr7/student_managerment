@@ -1,4 +1,3 @@
-"""API quản trị user SD17: /api/v1/admin/users (chỉ ACADEMIC)."""
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
 
@@ -8,14 +7,11 @@ from studentapp.exceptions import AppError
 
 bp = Blueprint("admin_users", __name__, url_prefix="/api/v1/admin/users")
 
-
 def _err(e: AppError):
     return jsonify({"error": e.error, "message": e.message}), e.status_code
 
-
 def _ok(data=None, message="OK", status=200):
     return jsonify({"success": True, "message": message, "data": data}), status
-
 
 def _actor():
     try:
@@ -23,7 +19,6 @@ def _actor():
         return get_jwt_identity()
     except Exception:
         return None
-
 
 @bp.get("")
 @role_required("ACADEMIC")
@@ -33,7 +28,6 @@ def list_users():
     except AppError as e:
         return _err(e)
 
-
 @bp.get("/<int:uid>")
 @role_required("ACADEMIC")
 def detail(uid):
@@ -41,7 +35,6 @@ def detail(uid):
         return _ok(user_service._get(uid).public_dict())
     except AppError as e:
         return _err(e)
-
 
 @bp.post("")
 @role_required("ACADEMIC")
@@ -65,7 +58,6 @@ def create():
         },
     }), 201
 
-
 @bp.put("/<int:uid>")
 @role_required("ACADEMIC")
 def update(uid):
@@ -74,7 +66,6 @@ def update(uid):
         return _ok(u.public_dict(), "Đã cập nhật tài khoản.")
     except AppError as e:
         return _err(e)
-
 
 @bp.patch("/<int:uid>/lock")
 @role_required("ACADEMIC")
@@ -95,7 +86,6 @@ def lock_patch(uid):
     except AppError as e:
         return _err(e)
 
-
 @bp.post("/<int:uid>/lock")
 @role_required("ACADEMIC")
 def lock(uid):
@@ -104,7 +94,6 @@ def lock(uid):
         return _ok(u.public_dict(), "Đã khoá.")
     except AppError as e:
         return _err(e)
-
 
 @bp.post("/<int:uid>/unlock")
 @role_required("ACADEMIC")
@@ -115,7 +104,6 @@ def unlock(uid):
     except AppError as e:
         return _err(e)
 
-
 @bp.post("/<int:uid>/reset-password")
 @role_required("ACADEMIC")
 def reset(uid):
@@ -125,7 +113,6 @@ def reset(uid):
         return _ok(u.public_dict(), "Đã reset mật khẩu.")
     except AppError as e:
         return _err(e)
-
 
 @bp.put("/<int:uid>/role")
 @role_required("ACADEMIC")

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Đăng nhập — Hệ thống Quản lý Học sinh</title>
+<meta name="description" content="Đăng nhập hệ thống quản lý học sinh, lớp học và sổ điểm.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/tokens.css">
+<link rel="stylesheet" href="/assets/css/base.css">
+<link rel="stylesheet" href="/assets/css/layout.css">
+<link rel="stylesheet" href="/assets/css/components.css">
+<link rel="stylesheet" href="/assets/css/pages.css">
+</head>
+<body>
+
+<div class="auth-page">
+  <div class="auth-card" id="auth-card">
+
+    <div class="auth-card__brand">
+      <span class="auth-card__logo">TH</span>
+      <div>
+        <div class="t-body-medium">Trường THPT</div>
+        <div class="t-caption">Quản lý Học sinh &amp; Sổ điểm</div>
+      </div>
+    </div>
+
+    <!-- ==================== M1 — ĐĂNG NHẬP ==================== -->
+    <section id="view-login">
+      <h1 class="auth-card__title">Đăng nhập</h1>
+      <p class="auth-card__subtitle">Sử dụng tài khoản được cấp bởi Giáo vụ để truy cập hệ thống.</p>
+
+      <div id="login-alert" class="hidden" style="margin-bottom:16px"></div>
+
+      <form id="form-login" novalidate>
+        <div class="field" style="margin-bottom:16px">
+          <label class="field__label" for="login-username">
+            Tên đăng nhập <span class="field__required" aria-hidden="true">*</span>
+          </label>
+          <input class="field__input" id="login-username" name="username"
+                 autocomplete="username" autocapitalize="none" spellcheck="false"
+                 placeholder="Nhập tên đăng nhập" required>
+        </div>
+
+        <div class="field" style="margin-bottom:16px">
+          <label class="field__label" for="login-password">
+            Mật khẩu <span class="field__required" aria-hidden="true">*</span>
+          </label>
+          <div style="position:relative">
+            <input class="field__input" id="login-password" name="password"
+                   type="password" autocomplete="current-password"
+                   placeholder="Nhập mật khẩu" required
+                   style="padding-right:40px">
+            <button type="button" class="btn btn--icon" id="btn-toggle-password"
+                    aria-label="Hiện mật khẩu" title="Hiện mật khẩu"
+                    style="position:absolute;right:3px;top:50%;transform:translateY(-50%);border:none;background:none">
+            </button>
+          </div>
+        </div>
+
+        <div class="field" style="margin-bottom:20px">
+          <label class="field__checkbox">
+            <input type="checkbox" id="login-remember" name="remember">
+            <span>Ghi nhớ đăng nhập</span>
+          </label>
+        </div>
+
+        <button type="submit" class="btn btn--primary btn--block" id="btn-login">
+          Đăng nhập
+        </button>
+      </form>
+
+      <div class="row row--between" style="margin-top:16px">
+        <span class="t-caption">Quên mật khẩu?</span>
+        <a href="#" class="t-body-medium" id="link-forgot" style="font-weight:500">
+          Đặt lại mật khẩu
+        </a>
+      </div>
+
+      <div class="auth-card__footer">
+        Hệ thống không cho tự đăng ký. Liên hệ Giáo vụ để được cấp tài khoản.
+      </div>
+    </section>
+
+    <!-- ==================== M2 — QUÊN MẬT KHẨU ==================== -->
+    <section id="view-forgot" class="hidden">
+      <h1 class="auth-card__title">Quên mật khẩu</h1>
+      <p class="auth-card__subtitle">Nhập tên đăng nhập hoặc email để nhận mã OTP đặt lại mật khẩu.</p>
+
+      <div id="forgot-alert" class="hidden" style="margin-bottom:16px"></div>
+
+      <form id="form-forgot" novalidate>
+        <div class="field" style="margin-bottom:20px">
+          <label class="field__label" for="forgot-ident">
+            Email hoặc tên đăng nhập <span class="field__required" aria-hidden="true">*</span>
+          </label>
+          <input class="field__input" id="forgot-ident" name="ident"
+                 autocomplete="username" autocapitalize="none" spellcheck="false"
+                 placeholder="Nhập email hoặc tên đăng nhập" required>
+        </div>
+
+        <button type="submit" class="btn btn--primary btn--block" id="btn-forgot">
+          Gửi mã OTP
+        </button>
+      </form>
+
+      <div class="row row--between" style="margin-top:16px">
+        <a href="#" class="t-body-medium" id="link-back-login" style="font-weight:500">
+          ← Quay lại đăng nhập
+        </a>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<div class="toast-container" role="status" aria-live="polite"></div>
+
+<script type="module" src="/assets/js/pages/login.js"></script>
+</body>
+</html>

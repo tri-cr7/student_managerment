@@ -1,12 +1,6 @@
-"""Test đọc điểm — GET /scores/assignment/{id} & GET /scores/student/{id}.
-
-Quy tắc quan trọng: API học sinh mặc định **CHỈ** trả điểm chính thức
-(đã duyệt, ``is_draft = false``) để không lộ điểm tạm ra ngoài.
-"""
 from studentapp.extensions import db
 from studentapp.models.score import Score
 from studentapp.services import score_service
-
 
 def _seed_scores(seed_data):
     rows = []
@@ -24,12 +18,10 @@ def _seed_scores(seed_data):
         seed_data["teacher"].id,
     )
 
-
 class TestGetAssignmentScores:
-    """Xem bảng điểm của lớp."""
 
     def test_returns_score_list(self, app, seed_data):
-        """Trả về danh sách điểm kèm thông tin học sinh."""
+
         _seed_scores(seed_data)
         result = score_service.get_assignment_scores(
             seed_data["assignment"].id, seed_data["teacher"].id
@@ -42,7 +34,7 @@ class TestGetAssignmentScores:
         assert "is_draft" in row
 
     def test_includes_nine_score_columns(self, app, seed_data):
-        """Mỗi dòng có đủ 9 cột điểm."""
+
         _seed_scores(seed_data)
         result = score_service.get_assignment_scores(
             seed_data["assignment"].id, seed_data["teacher"].id
@@ -55,7 +47,7 @@ class TestGetAssignmentScores:
             assert col in row
 
     def test_includes_class_metadata(self, app, seed_data):
-        """Response có tên lớp, môn, năm học."""
+
         _seed_scores(seed_data)
         result = score_service.get_assignment_scores(
             seed_data["assignment"].id, seed_data["teacher"].id
@@ -65,7 +57,7 @@ class TestGetAssignmentScores:
         assert result["academic_year"] == "2026-2027"
 
     def test_forbidden_for_other_teacher(self, app, seed_data):
-        """GV khác không xem được bảng điểm lớp không phụ trách."""
+
         from studentapp.exceptions import PermissionDeniedError
         import pytest
 
@@ -74,12 +66,10 @@ class TestGetAssignmentScores:
                 seed_data["assignment"].id, seed_data["other_teacher"].id
             )
 
-
 class TestGetStudentScores:
-    """Xem điểm của 1 học sinh."""
 
     def test_hides_draft_scores_by_default(self, app, seed_data):
-        """Mặc định KHÔNG trả điểm tạm (chỉ điểm chính thức)."""
+
         _seed_scores(seed_data)
         result = score_service.get_student_scores(
             seed_data["students"][0].id, seed_data["teacher"].id, include_draft=False
@@ -87,7 +77,7 @@ class TestGetStudentScores:
         assert all(r["is_draft"] is False for r in result["scores"])
 
     def test_includes_draft_when_requested(self, app, seed_data):
-        """include_draft=True ⇒ trả cả điểm tạm."""
+
         _seed_scores(seed_data)
         result = score_service.get_student_scores(
             seed_data["students"][0].id, seed_data["teacher"].id, include_draft=True
@@ -95,7 +85,7 @@ class TestGetStudentScores:
         assert any(r["is_draft"] is True for r in result["scores"])
 
     def test_returns_student_identity(self, app, seed_data):
-        """Response có mã + tên học sinh."""
+
         _seed_scores(seed_data)
         result = score_service.get_student_scores(
             seed_data["students"][0].id, seed_data["teacher"].id
@@ -104,16 +94,64 @@ class TestGetStudentScores:
         assert result["full_name"]
 
     def test_404_for_unknown_student(self, app, seed_data):
-        """Không tìm thấy học sinh → 404."""
+
         from studentapp.exceptions import NotFoundError
         import pytest
 
         with pytest.raises(NotFoundError):
             score_service.get_student_scores(999999, seed_data["teacher"].id)
 
+    def test_teacher_denied_for_student_outside_own_classes(self, app, seed_data):
+
+        from datetime import date
+
+        from studentapp.exceptions import PermissionDeniedError
+        from studentapp.models.class_enrollment import ClassEnrollment, EnrollmentStatusEnum
+        from studentapp.models.student import Student, StudentStatusEnum
+        import pytest
+
+        outsider = Student(
+            student_code="HS20269999",
+            full_name="Học Sinh Lớp Khác",
+            gender="Nam",
+            date_of_birth=date(2010, 6, 1),
+            status=StudentStatusEnum.DANG_HOC,
+        )
+        db.session.add(outsider)
+        db.session.flush()
+        db.session.add(
+            ClassEnrollment(
+                student_id=outsider.id,
+                class_id=seed_data["other_class"].id,
+                academic_year_id=seed_data["academic_year"].id,
+                enrollment_date=date(2026, 9, 1),
+                status=EnrollmentStatusEnum.DANG_HOC,
+            )
+        )
+        db.session.commit()
+
+        with pytest.raises(PermissionDeniedError):
+            score_service.get_student_scores(
+                outsider.id, seed_data["teacher"].id
+            )
+
+    def test_teacher_allowed_for_own_class_student(self, app, seed_data):
+
+        result = score_service.get_student_scores(
+            seed_data["students"][0].id, seed_data["teacher"].id
+        )
+        assert result["student_id"] == seed_data["students"][0].id
+
+    def test_academic_can_view_any_student(self, app, seed_data):
+
+        result = score_service.get_student_scores(
+            seed_data["students"][0].id,
+            seed_data["academic"].id,
+            is_academic=True,
+        )
+        assert result["student_id"] == seed_data["students"][0].id
 
 class TestReadEndpoints:
-    """API đọc điểm."""
 
     def test_assignment_scores_endpoint(self, app, client, seed_data, auth_headers):
         _seed_scores(seed_data)
@@ -147,3 +185,38 @@ class TestReadEndpoints:
     def test_requires_authentication(self, app, client, seed_data):
         resp = client.get(f"/api/v1/scores/assignment/{seed_data['assignment'].id}")
         assert resp.status_code == 401
+
+    def test_student_scores_endpoint_403_for_outsider(self, app, client, seed_data,
+                                                    auth_headers):
+
+        from datetime import date
+
+        from studentapp.models.class_enrollment import ClassEnrollment, EnrollmentStatusEnum
+        from studentapp.models.student import Student, StudentStatusEnum
+
+        outsider = Student(
+            student_code="HS20268888",
+            full_name="Học Sinh Ngoài Lớp",
+            gender="Nam",
+            date_of_birth=date(2010, 6, 1),
+            status=StudentStatusEnum.DANG_HOC,
+        )
+        db.session.add(outsider)
+        db.session.flush()
+        db.session.add(
+            ClassEnrollment(
+                student_id=outsider.id,
+                class_id=seed_data["other_class"].id,
+                academic_year_id=seed_data["academic_year"].id,
+                enrollment_date=date(2026, 9, 1),
+                status=EnrollmentStatusEnum.DANG_HOC,
+            )
+        )
+        db.session.commit()
+
+        resp = client.get(
+            f"/api/v1/scores/student/{outsider.id}",
+            headers=auth_headers("TEACHER", seed_data["teacher"].id),
+        )
+        assert resp.status_code == 403
+        assert resp.get_json()["error"] == "FORBIDDEN"

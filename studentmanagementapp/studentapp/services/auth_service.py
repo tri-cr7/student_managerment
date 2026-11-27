@@ -1,16 +1,13 @@
-"""SERVICE auth — SD01/SD02/SD17. JWT chính, system_rules động, bcrypt, audit 1 transaction."""
 import secrets
 import string
-from datetime import datetime
+from datetime import datetime, timedelta
 
-from flask import request as freq
 from flask_jwt_extended import create_access_token, create_refresh_token
 from flask_login import login_user, logout_user
 from sqlalchemy.exc import IntegrityError
 
 from studentapp.extensions import db
 from studentapp.models.user import User, UserRoleEnum
-from studentapp.models.audit_log import AuditLog
 from studentapp.repositories import user_repository
 from studentapp.repositories import system_rule_repository as rules
 from studentapp.exceptions import (
@@ -21,11 +18,29 @@ from studentapp.exceptions import (
     BusinessRuleError,
 )
 from studentapp.utils.validators import is_email, is_phone, is_strong_password
-
+from studentapp.utils.audit import client_ip, write_audit
 
 def _max_attempts() -> int:
     return rules.get_int("MAX_LOGIN_ATTEMPTS", 5)
 
+def _lock_duration_minutes() -> int:
+
+    return max(1, rules.get_int("LOCK_DURATION_MINUTES", 30))
+
+def lock_duration_minutes() -> int:
+
+    return _lock_duration_minutes()
+
+def _lock_remaining_minutes(user) -> int | None:
+
+    try:
+        expires = user.lock_expires_at
+        if expires is None:
+            return None
+        remaining = (expires - datetime.utcnow()).total_seconds() / 60
+        return max(1, int(remaining + 0.999)) if remaining > 0 else 0
+    except Exception:
+        return None
 
 def _validate_admin_create(payload: dict):
     username = (payload.get("username") or "").strip()
@@ -42,7 +57,6 @@ def _validate_admin_create(payload: dict):
         raise ValidationError("Số điện thoại không hợp lệ.")
     return username, email, full_name, phone or None
 
-
 def _gen_temp_password(length: int = 10) -> str:
     alphabet = string.ascii_letters + string.digits + "!@#$%"
     while True:
@@ -54,7 +68,6 @@ def _gen_temp_password(length: int = 10) -> str:
             and any(c in "!@#$%" for c in pw)
         ):
             return pw
-
 
 def _notify_password_changed(user, ip):
     try:
@@ -69,7 +82,6 @@ def _notify_password_changed(user, ip):
         )
     except Exception:
         pass
-
 
 def create_by_admin(payload: dict, creator_id=None) -> tuple:
     from studentapp.services import mail_service
@@ -100,13 +112,10 @@ def create_by_admin(payload: dict, creator_id=None) -> tuple:
     u.set_password(temp_password)
     try:
         user_repository.add(u)
-        db.session.add(
-            AuditLog(
-                user_id=int(creator_id) if creator_id else None,
-                action="ADMIN_CREATE_USER",
-                ip_address=freq.remote_addr if freq else None,
-                details={"username": username, "role": role.value},
-            )
+        write_audit(
+            int(creator_id) if creator_id else None,
+            "ADMIN_CREATE_USER",
+            {"username": username, "role": role.value},
         )
         db.session.commit()
     except DuplicateError:
@@ -117,14 +126,12 @@ def create_by_admin(payload: dict, creator_id=None) -> tuple:
     status = mail_service.send_account_email(email, full_name, username, temp_password, role.value)
     return u, temp_password, status
 
-
 def _redirect_for(role) -> str:
     return {
         "STAFF": "/staff/dashboard",
         "TEACHER": "/teacher/dashboard",
         "ACADEMIC": "/academic/dashboard",
     }.get(role.value if role else "", "/")
-
 
 def login(payload: dict) -> dict:
     username = (payload.get("username") or "").strip()
@@ -141,37 +148,63 @@ def login(payload: dict) -> dict:
         u = user_repository.get_by_username(username)
 
     max_attempts = _max_attempts()
-    ip = freq.remote_addr if freq else None
+    ip = client_ip()
 
     if u is None or not u.is_active:
         raise AuthenticationError("Tên đăng nhập hoặc mật khẩu không đúng.")
+
+    if u.is_locked and u.unlock_if_expired():
+        write_audit(
+            u.id,
+            "ACCOUNT_AUTO_UNLOCK",
+            {
+                "username": username,
+                "reason": "lock_duration_expired",
+                "locked_at": u.locked_at.isoformat() if u.locked_at else None,
+            },
+            ip=ip,
+        )
+        db.session.commit()
+
     if u.is_locked:
+        remaining_min = _lock_remaining_minutes(u)
+        wait_hint = (
+            f" Tự động mở khóa sau {remaining_min} phút nữa."
+            if remaining_min is not None
+            else ""
+        )
         raise LockedError(
-            f"Tài khoản đã bị tạm khóa do nhập sai quá {max_attempts} lần liên tiếp. "
-            "Vui lòng liên hệ Giáo vụ/Admin để mở khóa!"
+            f"Tài khoản đã bị tạm khóa do nhập sai quá {max_attempts} lần liên tiếp."
+            f"{wait_hint} "
+            "Vui lòng thử lại sau, hoặc dùng chức năng 'Quên mật khẩu' để đặt lại mật khẩu!"
         )
     if not u.check_password(password):
         u.failed_attempts = (u.failed_attempts or 0) + 1
         locked_now = u.failed_attempts >= max_attempts
         if locked_now:
             u.is_locked = True
-        db.session.add(
-            AuditLog(user_id=u.id, action="LOGIN_FAILED", ip_address=ip, details={"username": username})
-        )
+            u.locked_at = datetime.utcnow()
+        write_audit(u.id, "LOGIN_FAILED", {"username": username}, ip=ip)
         if locked_now:
-            db.session.add(
-                AuditLog(
-                    user_id=u.id,
-                    action="ACCOUNT_LOCKED",
-                    ip_address=ip,
-                    details={"username": username, "reason": "brute_force", "failed_attempts": u.failed_attempts},
-                )
+            write_audit(
+                u.id,
+                "ACCOUNT_LOCKED",
+                {
+                    "username": username,
+                    "reason": "brute_force",
+                    "failed_attempts": u.failed_attempts,
+                    "locked_at": u.locked_at.isoformat() if u.locked_at else None,
+                    "lock_duration_minutes": _lock_duration_minutes(),
+                },
+                ip=ip,
             )
         db.session.commit()
         if locked_now:
+            mins = _lock_duration_minutes()
             raise LockedError(
                 f"Tài khoản đã bị tạm khóa do nhập sai quá {max_attempts} lần liên tiếp. "
-                "Vui lòng liên hệ Giáo vụ/Admin để mở khóa!"
+                f"Sẽ tự động mở khóa sau {mins} phút, "
+                "hoặc bạn có thể dùng 'Quên mật khẩu' để đặt lại ngay."
             )
         remaining = max_attempts - u.failed_attempts
         raise AuthenticationError(f"Mật khẩu không chính xác. Bạn còn {remaining} lần thử!")
@@ -182,7 +215,7 @@ def login(payload: dict) -> dict:
             u.set_password(password)
     except Exception:
         pass
-    db.session.add(AuditLog(user_id=u.id, action="LOGIN_SUCCESS", ip_address=ip))
+    write_audit(u.id, "LOGIN_SUCCESS", ip=ip)
     db.session.commit()
 
     try:
@@ -207,7 +240,6 @@ def login(payload: dict) -> dict:
         "must_change_password": bool(u.must_change_password),
     }
 
-
 def logout(user_id=None):
     try:
         logout_user()
@@ -215,17 +247,10 @@ def logout(user_id=None):
         pass
     if user_id:
         try:
-            db.session.add(
-                AuditLog(
-                    user_id=int(user_id),
-                    action="LOGOUT",
-                    ip_address=freq.remote_addr if freq else None,
-                )
-            )
+            write_audit(int(user_id), "LOGOUT")
             db.session.commit()
         except Exception:
             db.session.rollback()
-
 
 def request_password_reset(identifier: str):
     from studentapp.services import otp_service
@@ -237,9 +262,74 @@ def request_password_reset(identifier: str):
     u = user_repository.get_by_email(ident) or user_repository.get_by_username(ident)
     if u is None or not u.is_active:
         return False, None
-    _code, status = otp_service.request_otp(u, OtpPurpose.FORGOT)
-    return True, status
+    code, status = otp_service.request_otp(u, OtpPurpose.FORGOT)
+    return True, (status, code)
 
+def verify_reset_otp(identifier: str, code: str):
+
+    from studentapp.services import otp_service
+    from studentapp.models.password_otp import OtpPurpose
+
+    ident = (identifier or "").strip()
+    if not ident:
+        raise ValidationError("Vui lòng nhập email hoặc tên đăng nhập.")
+    u = user_repository.get_by_email(ident) or user_repository.get_by_username(ident)
+    if u is None or not u.is_active:
+        raise ValidationError("Mã OTP không đúng. Vui lòng kiểm tra lại.")
+    otp = otp_service.verify_and_consume(
+        u.id, OtpPurpose.FORGOT, code, consume=False
+    )
+    return u, otp
+
+def reset_password_by_user(user_id: int, new_password: str, confirm: str):
+
+    from studentapp.services import otp_service
+    from studentapp.models.password_otp import OtpPurpose
+
+    u = user_repository.get_by_id(user_id)
+    if u is None or not u.is_active:
+        raise ValidationError("Mã OTP không đúng. Vui lòng kiểm tra lại.")
+
+    otp_service.verify_and_consume(u.id, OtpPurpose.FORGOT, _latest_forgot_code(u.id))
+    ok, msg = is_strong_password(new_password)
+    if not ok:
+        raise ValidationError(msg + " (Mật khẩu mạnh: ≥8 ký tự, có Hoa + thường + số + ký tự đặc biệt).")
+    if new_password != (confirm or ""):
+        raise ValidationError("Mật khẩu xác nhận không khớp.")
+    u.set_password(new_password)
+    u.failed_attempts = 0
+    u.is_locked = False
+    u.locked_at = None
+    u.must_change_password = False
+    ip = client_ip()
+    write_audit(
+        u.id,
+        "PASSWORD_RESET_SELF",
+        {"was_locked": bool(u.locked_at) or None},
+        ip=ip,
+    )
+    db.session.commit()
+    _notify_password_changed(u, ip)
+    return u
+
+def _latest_forgot_code(user_id: int) -> str:
+
+    from studentapp.models.password_otp import OtpPurpose, PasswordOtp
+
+    otp = (
+        PasswordOtp.query.filter_by(
+            user_id=user_id, purpose=OtpPurpose.FORGOT, used=False
+        )
+        .order_by(PasswordOtp.id.desc())
+        .first()
+    )
+    if otp is None:
+        raise ValidationError("Mã OTP không tồn tại hoặc đã dùng. Vui lòng yêu cầu mã mới.")
+    if otp.is_expired():
+        otp.used = True
+        db.session.commit()
+        raise ValidationError("Mã OTP đã hết hạn. Vui lòng yêu cầu mã mới.")
+    return otp.code
 
 def reset_password_with_otp(identifier: str, code: str, new_password: str, confirm: str):
     from studentapp.services import otp_service
@@ -260,9 +350,15 @@ def reset_password_with_otp(identifier: str, code: str, new_password: str, confi
     u.set_password(new_password)
     u.failed_attempts = 0
     u.is_locked = False
+    u.locked_at = None
     u.must_change_password = False
-    ip = freq.remote_addr if freq else None
-    db.session.add(AuditLog(user_id=u.id, action="PASSWORD_RESET_SELF", ip_address=ip))
+    ip = client_ip()
+    write_audit(
+        u.id,
+        "PASSWORD_RESET_SELF",
+        {"was_locked": bool(u.locked_at) or None},
+        ip=ip,
+    )
     db.session.commit()
     _notify_password_changed(u, ip)
     return u

@@ -1,19 +1,3 @@
-"""Script đồng bộ schema + seed dữ liệu mẫu cho module ĐIỂM (Giáo viên).
-
-Mục đích:
-1. Tạo các bảng/cột còn thiếu theo thiết kế mới trong code
-   (``scores.is_draft``, ``scores.submitted_at``, ``teaching_assignments.locked_at``,
-   ``score_submissions``, ``score_change_requests``, ``score_change_details``, ``email_outbox``).
-2. Seed dữ liệu mẫu để test bằng Postman: GV, lớp, môn, phân công giảng dạy, học sinh.
-
-Cách chạy (từ thư mục ``studentmanagementapp``)::
-
-    ./venv/bin/python seed_teacher_demo.py
-
-Tuỳ chọn::
-
-    ./venv/bin/python seed_teacher_demo.py --reset   # xoá sạch dữ liệu điểm trước khi seed
-"""
 import argparse
 import os
 import sys
@@ -23,12 +7,11 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
-from studentapp import create_app  # noqa: E402
-from studentapp.extensions import db  # noqa: E402
-
+from studentapp import create_app
+from studentapp.extensions import db
 
 def _ensure_column(table, column, ddl, after=None):
-    """Thêm cột nếu chưa có (dùng information_schema để kiểm tra trước)."""
+
     from sqlalchemy import inspect, text
 
     inspector = inspect(db.engine)
@@ -45,13 +28,8 @@ def _ensure_column(table, column, ddl, after=None):
     print(f"  + {table}.{column}")
     return True
 
-
 def _migrate_score_change_requests():
-    """Migrate bảng legacy score_change_requests (kiểu đơn-ô-điểm, 1 hàng = 1 ô)
 
-    sang kiểu đơn cha + chi tiết (SD25/SD19): cha giữ assignment/teacher/reason,
-    từng ô điểm nằm ở score_change_details. Chạy an toàn nhiều lần.
-    """
     from sqlalchemy import inspect, text
 
     inspector = inspect(db.engine)
@@ -59,14 +37,14 @@ def _migrate_score_change_requests():
         return False
     cols = {c["name"] for c in inspector.get_columns("score_change_requests")}
     if "is_batch" in cols and "score_id" not in cols:
-        return False  # đã là schema mới
+        return False
 
     print("  ~ migrate score_change_requests (legacy 1-ô → cha + chi tiết)...")
-    # Xoá các đơn DRAFT dở dang của schema cũ (không có chi tiết đi kèm).
+
     db.session.execute(
         text("DELETE FROM score_change_requests WHERE status='DRAFT'")
     )
-    # Gỡ FK trỏ tới các cột legacy trước khi DROP cột.
+
     for fk in inspector.get_foreign_keys("score_change_requests"):
         constrained = fk.get("constrained_columns") or []
         if any(c in ("score_id", "reviewed_by", "assignment_id", "teacher_id")
@@ -86,7 +64,6 @@ def _migrate_score_change_requests():
     db.session.commit()
     return True
 
-
 def _ensure_table(table, ddl):
     from sqlalchemy import inspect, text
 
@@ -98,9 +75,8 @@ def _ensure_table(table, ddl):
     print(f"  + bảng {table}")
     return True
 
-
 def sync_schema():
-    """Đồng bộ schema DB với model mới."""
+
     print("[1/4] Đồng bộ schema...")
 
     _ensure_column(
@@ -113,8 +89,6 @@ def sync_schema():
         "teaching_assignments", "locked_at", "TIMESTAMP NULL DEFAULT NULL", after="is_locked"
     )
 
-    # Migrate bảng legacy (1 hàng = 1 ô điểm) sang kiểu cha + chi tiết.
-    # Phải chạy TRƯỚC _ensure_table vì bảng cũ đã tồn tại.
     _migrate_score_change_requests()
 
     _ensure_table(
@@ -205,9 +179,8 @@ def sync_schema():
         """,
     )
 
-
 def seed_demo(reset_scores=False):
-    """Seed dữ liệu mẫu: GV, lớp, môn, assignment, học sinh."""
+
     print("[2/4] Seed dữ liệu nền...")
 
     from studentapp.models.academic_year import AcademicYear
@@ -220,7 +193,6 @@ def seed_demo(reset_scores=False):
     from studentapp.models.teaching_assignment import TeachingAssignment
     from studentapp.models.user import User, UserRoleEnum
 
-    # --- Bảng nền: năm học / khối / học kỳ ---
     year = AcademicYear.query.filter_by(year_name="2026-2027").first()
     if year is None:
         year = AcademicYear(year_name="2026-2027", start_year=2026, end_year=2027, is_current=True)
@@ -231,20 +203,23 @@ def seed_demo(reset_scores=False):
         db.session.add(grade)
     db.session.flush()
 
-    semester = Semester.query.filter_by(
-        semester_name="Học kỳ 1", academic_year_id=year.id
-    ).first()
-    if semester is None:
-        semester = Semester(
-            semester_name="Học kỳ 1",
-            academic_year_id=year.id,
-            factor=1,
-            is_current=True,
-        )
-        db.session.add(semester)
+    semester = None
+    for sem_name, is_current in (("HK1", True), ("HK2", False)):
+        row = Semester.query.filter_by(
+            semester_name=sem_name, academic_year_id=year.id
+        ).first()
+        if row is None:
+            row = Semester(
+                semester_name=sem_name,
+                academic_year_id=year.id,
+                factor=Semester.factor_for(sem_name),
+                is_current=is_current,
+            )
+            db.session.add(row)
+        if sem_name == "HK1":
+            semester = row
     db.session.flush()
 
-    # --- Môn học ---
     subject = Subject.query.filter_by(subject_code="TOAN10").first()
     if subject is None:
         subject = Subject(
@@ -256,13 +231,12 @@ def seed_demo(reset_scores=False):
         db.session.add(subject)
     db.session.flush()
 
-    # --- Tài khoản ---
     def ensure_user(username, email, full_name, role, password):
         u = User.query.filter_by(username=username).first()
         if u is None:
             u = User(username=username, email=email, full_name=full_name, role=role)
             db.session.add(u)
-        # Luôn ép mật khẩu demo về giá trị cố định để test Postman ổn định.
+
         u.set_password(password)
         u.is_active = True
         u.is_locked = False
@@ -280,7 +254,6 @@ def seed_demo(reset_scores=False):
         "giaovu", "giaovu@school.local", "Giáo Vụ", UserRoleEnum.ACADEMIC, "Admin@123"
     )
 
-    # --- Lớp ---
     class_room = Class.query.filter_by(class_name="10A1").first()
     if class_room is None:
         class_room = Class(
@@ -295,7 +268,6 @@ def seed_demo(reset_scores=False):
         class_room.homeroom_teacher_id = teacher.id
         class_room.academic_year_id = year.id
 
-    # --- Phân công giảng dạy ---
     assignment = TeachingAssignment.query.filter_by(
         teacher_id=teacher.id, class_id=class_room.id, subject_id=subject.id
     ).first()
@@ -324,7 +296,6 @@ def seed_demo(reset_scores=False):
             )
         )
 
-    # --- Học sinh + ghi danh lớp ---
     student_names = [
         ("HS2026001", "Nguyễn Văn An"),
         ("HS2026002", "Trần Thị Bình"),
@@ -367,9 +338,8 @@ def seed_demo(reset_scores=False):
     print(f"  Assignment (GV2)  : id={other_assignment.id if other_assignment else '-'}")
     return teacher, assignment
 
-
 def reset_score_data():
-    """Xoá sạch dữ liệu điểm + đơn từ chối + đơn phúc khảo (để test lại từ đầu)."""
+
     print("[3/4] Xoá dữ liệu điểm cũ (--reset)...")
     from sqlalchemy import text
 
@@ -380,9 +350,8 @@ def reset_score_data():
     db.session.execute(text("UPDATE teaching_assignments SET is_locked = 0, locked_at = NULL"))
     db.session.commit()
 
-
 def print_ids():
-    """In ra các ID quan trọng để điền vào biến Postman."""
+
     print("[4/4] ID tham chiếu cho Postman")
     from studentapp.models.class_room import Class
     from studentapp.models.student import Student
@@ -390,7 +359,6 @@ def print_ids():
     from studentapp.models.teaching_assignment import TeachingAssignment
     from studentapp.models.user import User, UserRoleEnum
 
-    # Lấy GV đang có assignment để biến Postman trỏ đúng lớp GV phụ trách.
     assignment = (
         TeachingAssignment.query.join(
             User, TeachingAssignment.teacher_id == User.id
@@ -416,7 +384,6 @@ def print_ids():
     print(f"  {{{{assignmentId}}}}   = {assignment.id if assignment else '-'}")
     print("-" * 58)
 
-
 def main():
     parser = argparse.ArgumentParser(description="Seed dữ liệu demo cho module Giáo viên")
     parser.add_argument(
@@ -432,8 +399,7 @@ def main():
             reset_score_data()
         seed_demo()
         print_ids()
-    print("\n✅ Hoàn tất. Mở Postman và import file postman_teacher_collection.json")
-
+    print("\n✅ Hoàn tất.")
 
 if __name__ == "__main__":
     main()

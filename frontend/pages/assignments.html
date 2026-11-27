@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phân công giảng dạy — Hệ thống Quản lý Học sinh</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/tokens.css">
+<link rel="stylesheet" href="/assets/css/base.css">
+<link rel="stylesheet" href="/assets/css/layout.css">
+<link rel="stylesheet" href="/assets/css/components.css">
+<link rel="stylesheet" href="/assets/css/pages.css">
+</head>
+<body>
+
+<div class="app-shell" id="app-shell"></div>
+
+<div class="toast-container" role="status" aria-live="polite"></div>
+
+<!-- ==================== Modal phân công ==================== -->
+<dialog class="modal" id="modal-assignment">
+  <form method="dialog" class="modal__dialog" id="form-assignment">
+    <header class="modal__header">
+      <div>
+        <h2 class="modal__title" id="as-modal-title">Phân công giảng dạy</h2>
+        <p class="modal__subtitle" id="as-modal-subtitle"></p>
+      </div>
+      <button type="button" class="btn btn--icon" data-close aria-label="Đóng">✕</button>
+    </header>
+    <div class="modal__body">
+      <div id="as-alert" class="hidden" style="margin-bottom:16px"></div>
+      <div class="form-grid">
+        <div class="field field--full">
+          <label class="field__label" for="as-teacher">
+            Giáo viên <span class="field__required">*</span>
+          </label>
+          <div class="field__select-wrap">
+            <select class="field__select" id="as-teacher" name="teacher_id" required>
+              <option value="">-- Chọn giáo viên --</option>
+            </select>
+            <span class="field__chevron">▾</span>
+          </div>
+        </div>
+        <div class="field">
+          <label class="field__label" for="as-class">
+            Lớp <span class="field__required">*</span>
+          </label>
+          <div class="field__select-wrap">
+            <select class="field__select" id="as-class" name="class_id" required>
+              <option value="">-- Chọn lớp --</option>
+            </select>
+            <span class="field__chevron">▾</span>
+          </div>
+        </div>
+        <div class="field">
+          <label class="field__label" for="as-subject">
+            Môn học <span class="field__required">*</span>
+          </label>
+          <div class="field__select-wrap">
+            <select class="field__select" id="as-subject" name="subject_id" required>
+              <option value="">-- Chọn môn học --</option>
+            </select>
+            <span class="field__chevron">▾</span>
+          </div>
+        </div>
+        <div class="field field--full">
+          <label class="field__label" for="as-semester">
+            Học kỳ <span class="field__required">*</span>
+          </label>
+          <div class="field__select-wrap">
+            <select class="field__select" id="as-semester" name="semester_id" required>
+              <option value="">-- Chọn học kỳ --</option>
+            </select>
+            <span class="field__chevron">▾</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <footer class="modal__footer">
+      <button type="button" class="btn btn--secondary" data-close>Huỷ</button>
+      <button type="submit" class="btn btn--primary" id="btn-assignment">Phân công</button>
+    </footer>
+  </form>
+</dialog>
+
+<script type="module" src="/assets/js/pages/assignments.js"></script>
+</body>
+</html>

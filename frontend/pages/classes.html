@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quản lý lớp học — Hệ thống Quản lý Học sinh</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/tokens.css">
+<link rel="stylesheet" href="/assets/css/base.css">
+<link rel="stylesheet" href="/assets/css/layout.css">
+<link rel="stylesheet" href="/assets/css/components.css">
+<link rel="stylesheet" href="/assets/css/pages.css">
+</head>
+<body>
+
+<div class="app-shell" id="app-shell"></div>
+
+<div class="toast-container" role="status" aria-live="polite"></div>
+
+<!-- ==================== Modal tạo / sửa lớp ==================== -->
+<dialog class="modal" id="modal-class">
+  <form method="dialog" class="modal__dialog" id="form-class">
+    <header class="modal__header">
+      <div>
+        <h2 class="modal__title" id="class-modal-title">Tạo lớp học</h2>
+        <p class="modal__subtitle" id="class-modal-subtitle"></p>
+      </div>
+      <button type="button" class="btn btn--icon" data-close aria-label="Đóng">✕</button>
+    </header>
+    <div class="modal__body">
+      <div id="class-alert" class="hidden" style="margin-bottom:16px"></div>
+      <div class="form-grid">
+        <div class="field">
+          <label class="field__label" for="class-name">Tên lớp <span class="field__required">*</span></label>
+          <input class="field__input" id="class-name" name="class_name"
+                 placeholder="10A1" required>
+        </div>
+        <div class="field">
+          <label class="field__label" for="class-grade">Khối lớp <span class="field__required">*</span></label>
+          <div class="field__select-wrap">
+            <select class="field__select" id="class-grade" name="grade_id" required>
+              <option value="">-- Chọn khối --</option>
+            </select>
+            <span class="field__chevron">▾</span>
+          </div>
+        </div>
+        <div class="field">
+          <label class="field__label" for="class-year">Năm học <span class="field__required">*</span></label>
+          <div class="field__select-wrap">
+            <select class="field__select" id="class-year" name="academic_year_id" required>
+              <option value="">-- Chọn năm học --</option>
+            </select>
+            <span class="field__chevron">▾</span>
+          </div>
+        </div>
+        <div class="field">
+          <label class="field__label" for="class-teacher">Giáo viên chủ nhiệm</label>
+          <div class="field__select-wrap">
+            <select class="field__select" id="class-teacher" name="homeroom_teacher_id">
+              <option value="">-- Chưa phân công --</option>
+            </select>
+            <span class="field__chevron">▾</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <footer class="modal__footer">
+      <button type="button" class="btn btn--secondary" data-close>Huỷ</button>
+      <button type="submit" class="btn btn--primary" id="btn-class">Tạo lớp</button>
+    </footer>
+  </form>
+</dialog>
+
+<!-- ==================== M8 — Modal phân bổ học sinh ==================== -->
+<dialog class="modal" id="modal-enroll">
+  <form method="dialog" class="modal__dialog modal__dialog--960" id="form-enroll">
+    <header class="modal__header">
+      <div>
+        <h2 class="modal__title">Phân bổ học sinh vào lớp</h2>
+        <p class="modal__subtitle" id="enroll-subtitle"></p>
+      </div>
+      <button type="button" class="btn btn--icon" data-close aria-label="Đóng">✕</button>
+    </header>
+    <div class="modal__body">
+      <div id="enroll-alert" class="hidden" style="margin-bottom:16px"></div>
+
+      <div class="enroll-cols">
+        <div class="enroll-list">
+          <div class="enroll-list__head">
+            <div class="row row--between">
+              <span class="t-body-medium">Chưa phân lớp</span>
+              <span class="chip chip--neutral" id="enroll-source-count">0</span>
+            </div>
+            <input class="field__input" id="enroll-search" type="search"
+                   placeholder="Tìm học sinh..." style="margin-top:8px">
+          </div>
+          <div class="enroll-list__body" id="enroll-source"></div>
+        </div>
+
+        <div class="enroll-transfer">
+          <button type="button" class="enroll-transfer__btn" id="btn-enroll-add"
+                  aria-label="Thêm vào lớp" title="Thêm vào lớp">→</button>
+        </div>
+
+        <div class="enroll-list enroll-target">
+          <div class="enroll-list__head">
+            <div class="row row--between">
+              <span class="t-body-medium" id="enroll-target-name">Lớp đích</span>
+              <span class="chip chip--primary" id="enroll-target-count">0 / 40</span>
+            </div>
+          </div>
+          <div class="enroll-list__body" id="enroll-target-list"></div>
+        </div>
+      </div>
+
+      <div class="alert alert--info" style="margin-top:16px">
+        <span class="alert__icon" id="enroll-info-icon"></span>
+        <div class="alert__body">
+          <div class="alert__message" id="enroll-info-text"></div>
+        </div>
+      </div>
+    </div>
+    <footer class="modal__footer">
+      <span class="modal__footer-note" id="enroll-note"></span>
+      <button type="button" class="btn btn--secondary" data-close>Huỷ</button>
+      <button type="submit" class="btn btn--primary" id="btn-enroll">Phân bổ</button>
+    </footer>
+  </form>
+</dialog>
+
+<!-- ==================== M9 — Modal điều chuyển lớp ==================== -->
+<dialog class="modal" id="modal-transfer">
+  <form method="dialog" class="modal__dialog" id="form-transfer">
+    <header class="modal__header">
+      <div>
+        <h2 class="modal__title">Điều chuyển học sinh</h2>
+        <p class="modal__subtitle">Chuyển học sinh từ lớp này sang lớp khác.</p>
+      </div>
+      <button type="button" class="btn btn--icon" data-close aria-label="Đóng">✕</button>
+    </header>
+    <div class="modal__body">
+      <div id="transfer-alert" class="hidden" style="margin-bottom:16px"></div>
+      <div class="form-grid">
+        <div class="field field--full">
+          <label class="field__label" for="transfer-student">Học sinh <span class="field__required">*</span></label>
+          <div class="field__select-wrap">
+            <select class="field__select" id="transfer-student" name="student_id" required>
+              <option value="">-- Chọn học sinh --</option>
+            </select>
+            <span class="field__chevron">▾</span>
+          </div>
+        </div>
+        <div class="field">
+          <label class="field__label" for="transfer-from">Lớp hiện tại</label>
+          <input class="field__input" id="transfer-from" readonly>
+        </div>
+        <div class="field">
+          <label class="field__label" for="transfer-to">Lớp chuyển đến <span class="field__required">*</span></label>
+          <div class="field__select-wrap">
+            <select class="field__select" id="transfer-to" name="to_class_id" required>
+              <option value="">-- Chọn lớp --</option>
+            </select>
+            <span class="field__chevron">▾</span>
+          </div>
+        </div>
+        <div class="field field--full">
+          <label class="field__label" for="transfer-reason">Lý do chuyển lớp</label>
+          <textarea class="field__textarea" id="transfer-reason" name="transfer_reason"
+                    placeholder="Ghi chú lý do chuyển lớp (không bắt buộc)"></textarea>
+        </div>
+      </div>
+    </div>
+    <footer class="modal__footer">
+      <button type="button" class="btn btn--secondary" data-close>Huỷ</button>
+      <button type="submit" class="btn btn--primary" id="btn-transfer">Chuyển lớp</button>
+    </footer>
+  </form>
+</dialog>
+
+<!-- ==================== Modal xem lớp / danh sách HS trong lớp ==================== -->
+<dialog class="modal" id="modal-class-detail">
+  <div class="modal__dialog modal__dialog--720">
+    <header class="modal__header">
+      <div>
+        <h2 class="modal__title" id="detail-title">Danh sách lớp</h2>
+        <p class="modal__subtitle" id="detail-subtitle"></p>
+      </div>
+      <button type="button" class="btn btn--icon" data-close aria-label="Đóng">✕</button>
+    </header>
+    <div class="modal__body">
+      <div id="detail-alert" class="hidden" style="margin-bottom:16px"></div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead class="table__head">
+            <tr>
+              <th>Mã HS</th>
+              <th>Học sinh</th>
+              <th>Giới tính</th>
+              <th>Ngày sinh</th>
+              <th style="text-align:right">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody id="detail-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <footer class="modal__footer">
+      <a class="btn btn--secondary" id="btn-export-class" href="#" target="_blank"
+         rel="noopener">Xuất Excel</a>
+      <button type="button" class="btn btn--secondary" data-close>Đóng</button>
+    </footer>
+  </div>
+</dialog>
+
+<script type="module" src="/assets/js/pages/classes.js"></script>
+</body>
+</html>

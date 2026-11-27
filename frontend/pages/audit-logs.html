@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nhật ký hệ thống — Hệ thống Quản lý Học sinh</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/tokens.css">
+<link rel="stylesheet" href="/assets/css/base.css">
+<link rel="stylesheet" href="/assets/css/layout.css">
+<link rel="stylesheet" href="/assets/css/components.css">
+<link rel="stylesheet" href="/assets/css/pages.css">
+</head>
+<body>
+
+<div class="app-shell" id="app-shell"></div>
+
+<div class="toast-container" role="status" aria-live="polite"></div>
+
+<!-- ==================== Modal chi tiết vết ==================== -->
+<dialog class="modal" id="modal-audit">
+  <div class="modal__dialog modal__dialog--720">
+    <header class="modal__header">
+      <div>
+        <h2 class="modal__title" id="audit-title">Chi tiết nhật ký</h2>
+        <p class="modal__subtitle" id="audit-subtitle"></p>
+      </div>
+      <button type="button" class="btn btn--icon" data-close aria-label="Đóng">✕</button>
+    </header>
+    <div class="modal__body">
+      <div class="kv-list" id="audit-meta"></div>
+
+      <div class="field-group">
+        <div class="field-group__title">Dữ liệu thay đổi</div>
+        <div id="audit-details"></div>
+      </div>
+    </div>
+    <footer class="modal__footer">
+      <button type="button" class="btn btn--secondary" data-close>Đóng</button>
+    </footer>
+  </div>
+</dialog>
+
+<script type="module" src="/assets/js/pages/audit-logs.js"></script>
+</body>
+</html>

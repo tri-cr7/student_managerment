@@ -14,8 +14,12 @@ itsdangerous==2.2.0
 Jinja2==3.1.6
 Mako==1.4.3
 MarkupSafe==3.0.4
+openpyxl==3.1.5
 PyJWT==2.15.1
 PyMySQL==1.2.3
+pytest==9.2.0
+python-dotenv==1.1.1
+reportlab==5.1.0
 six==1.17.0
 SQLAlchemy==2.1.5
 typing_extensions==4.16.0

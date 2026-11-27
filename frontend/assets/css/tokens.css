@@ -1,0 +1,93 @@
+/* ==========================================================================
+   TOKENS — Hệ thống Quản lý Học sinh
+   Nguồn: BAO_CAO_THIET_KE_GIAO_DIEN.md §2
+   Mọi giá trị màu / khoảng cách / bo góc trong project ĐỀU lấy từ đây.
+   ========================================================================== */
+
+:root {
+  /* ---------- Nền & chữ ---------- */
+  --bg-page: #f9fafb;
+  --bg-surface: #ffffff;
+  --bg-subtle: #f3f4f6;
+  --bg-hover: #f9fafb;
+  --bg-active: #eff6ff;
+
+  --border-default: #e5e7eb;
+  --border-strong: #d1d5db;
+  --border-subtle: #f3f4f6;
+
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+  --text-tertiary: #9ca3af;
+  --text-inverse: #ffffff;
+
+  /* ---------- Màu nhấn (chỉ 1 màu chủ đạo) ---------- */
+  --primary-50: #eff6ff;
+  --primary-100: #dbeafe;
+  --primary-500: #3b82f6;
+  --primary-600: #2563eb;
+  --primary-700: #1d4ed8;
+  --primary-ring: rgba(37, 99, 235, 0.12);
+
+  /* ---------- Trạng thái (chỉ dùng cho chip/badge/alert) ---------- */
+  --success: #059669;
+  --success-bg: #ecfdf5;
+  --success-border: #a7f3d0;
+  --warning: #d97706;
+  --warning-bg: #fffbeb;
+  --warning-border: #fde68a;
+  --danger: #dc2626;
+  --danger-bg: #fef2f2;
+  --danger-border: #fecaca;
+  --info: #0891b2;
+  --info-bg: #ecfeff;
+  --info-border: #a5f3fc;
+  --neutral: #6b7280;
+  --neutral-bg: #f3f4f6;
+  --neutral-border: #e5e7eb;
+
+  /* ---------- Typography ---------- */
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", sans-serif;
+  --font-mono: "JetBrains Mono", SFMono-Regular, Menlo, Consolas, monospace;
+
+  --text-display-size: 24px;
+  --text-display-lh: 32px;
+  --text-title-size: 18px;
+  --text-title-lh: 24px;
+  --text-subtitle-size: 16px;
+  --text-subtitle-lh: 24px;
+  --text-body-size: 14px;
+  --text-body-lh: 20px;
+  --text-caption-size: 12px;
+  --text-caption-lh: 16px;
+  --text-mono-size: 13px;
+
+  /* ---------- Spacing scale ---------- */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+  --sp-12: 48px;
+
+  /* ---------- Shape ---------- */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 12px rgba(17, 24, 39, 0.08);
+
+  /* ---------- Layout ---------- */
+  --topbar-h: 56px;
+  --sidebar-w: 240px;
+  --sidebar-w-collapsed: 64px;
+  --content-max: 1440px;
+
+  /* ---------- Motion ---------- */
+  --transition-fast: 150ms ease;
+  --transition-base: 200ms ease;
+}

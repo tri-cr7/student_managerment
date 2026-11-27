@@ -1,15 +1,12 @@
-"""ENTITY students — Hồ sơ học sinh (Yêu cầu 1)."""
 import enum
 
 from studentapp.extensions import db
 
-
 class StudentStatusEnum(enum.Enum):
+
     DANG_HOC = "DANG_HOC"
     THOI_HOC = "THOI_HOC"
-    CHUYEN_TRUONG = "CHUYEN_TRUONG"
-    TOT_NGHIEP = "TOT_NGHIEP"
-
+    BAO_LUU = "BAO_LUU"
 
 class Student(db.Model):
     __tablename__ = "students"
@@ -20,14 +17,22 @@ class Student(db.Model):
     gender = db.Column(db.String(10), nullable=True)
     date_of_birth = db.Column(db.Date, nullable=True)
     address = db.Column(db.String(255), nullable=True)
-    phone = db.Column(db.String(15), nullable=True)
-    email = db.Column(db.String(100), nullable=True)
-    citizen_id = db.Column(db.String(20), nullable=True)
+    phone = db.Column(db.String(15), unique=True, nullable=True)
+    email = db.Column(db.String(100), unique=True, nullable=True)
+    citizen_id = db.Column(db.String(20), unique=True, nullable=True)
     parent_name = db.Column(db.String(100), nullable=True)
     parent_phone = db.Column(db.String(15), nullable=True)
     status = db.Column(
         db.Enum(StudentStatusEnum), nullable=False, default=StudentStatusEnum.DANG_HOC
     )
+
+    is_deleted = db.Column(db.Boolean, nullable=False, default=False)
+
+    deleted_at = db.Column(db.TIMESTAMP, nullable=True)
+
+    deleted_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+
+    deleted_reason = db.Column(db.String(500), nullable=True)
     created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     created_at = db.Column(
         db.TIMESTAMP, nullable=False, server_default=db.func.current_timestamp()
@@ -53,4 +58,7 @@ class Student(db.Model):
             "parent_name": self.parent_name,
             "parent_phone": self.parent_phone,
             "status": self.status.value if self.status else None,
+            "is_deleted": bool(self.is_deleted),
+            "deleted_at": self.deleted_at.isoformat() if self.deleted_at else None,
+            "deleted_reason": self.deleted_reason,
         }

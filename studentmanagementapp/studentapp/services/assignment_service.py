@@ -1,12 +1,3 @@
-"""SERVICE assignment — phân công giảng dạy cho Giáo vụ (SD16).
-
-Quy tắc:
-* Giáo viên được phân công phải tồn tại, đang active, không bị khóa,
-  role = TEACHER (ACADEMIC cũng được chấp nhận để kiêm nhiệm).
-* Lớp / môn / học kỳ phải tồn tại.
-* Unique (class_id, subject_id, semester_id) → trùng thì 409.
-* Xóa chỉ khi chưa phát sinh điểm (scores) và chưa có đơn gửi duyệt (SD24/SD19).
-"""
 from studentapp.exceptions import (
     BusinessRuleError,
     DuplicateError,
@@ -17,20 +8,17 @@ from studentapp.extensions import db
 from studentapp.models.user import UserRoleEnum
 from studentapp.repositories import teaching_assignment_repository
 
-
 def _as_int(value, field_name):
     try:
         return int(value)
     except (TypeError, ValueError):
         raise ValidationError(f"{field_name} không hợp lệ.")
 
-
 def _get_or_404(assignment_id):
     row = teaching_assignment_repository.get_by_id(assignment_id)
     if row is None:
         raise NotFoundError("Không tìm thấy phân công giảng dạy.")
     return row
-
 
 def _ensure_teacher(teacher_id):
     from studentapp.repositories import user_repository
@@ -51,7 +39,6 @@ def _ensure_teacher(teacher_id):
         )
     return user
 
-
 def _ensure_class(class_id):
     from studentapp.models.class_room import Class
 
@@ -60,7 +47,6 @@ def _ensure_class(class_id):
     if row is None:
         raise NotFoundError("Không tìm thấy lớp học.")
     return row
-
 
 def _ensure_subject(subject_id):
     from studentapp.models.subject import Subject
@@ -76,7 +62,6 @@ def _ensure_subject(subject_id):
         )
     return row
 
-
 def _ensure_semester(semester_id):
     from studentapp.models.semester import Semester
 
@@ -86,6 +71,22 @@ def _ensure_semester(semester_id):
         raise NotFoundError("Không tìm thấy học kỳ.")
     return row
 
+def _ensure_same_academic_year(class_row, semester_row):
+
+    class_year_id = int(class_row.academic_year_id)
+    sem_year_id = int(semester_row.academic_year_id)
+    if class_year_id == sem_year_id:
+        return True
+    cls_year = class_row.academic_year
+    sem_year = semester_row.academic_year
+    raise BusinessRuleError(
+        f"Lớp {class_row.class_name} thuộc niên khóa "
+        f"{cls_year.year_name if cls_year else class_year_id} nhưng học kỳ "
+        f"{semester_row.semester_name} thuộc niên khóa "
+        f"{sem_year.year_name if sem_year else sem_year_id}. "
+        "Không được phân công xuyên niên khóa.",
+        error="ACADEMIC_YEAR_MISMATCH",
+    )
 
 def _enrich(row):
     item = row.to_dict()
@@ -104,21 +105,10 @@ def _enrich(row):
     )
     return item
 
-
 def _write_audit(actor_id, action, details):
-    from studentapp.models.audit_log import AuditLog
+    from studentapp.utils.audit import write_audit
 
-    try:
-        uid = int(actor_id) if actor_id is not None else None
-    except (TypeError, ValueError):
-        uid = None
-    db.session.add(AuditLog(user_id=uid, action=action, details=details))
-
-
-# --------------------------------------------------------------------------- #
-# SD16 — CRUD
-# --------------------------------------------------------------------------- #
-
+    write_audit(actor_id, action, details)
 
 def list_assignments(page=1, limit=20, teacher_id=None,
                      semester_id=None, class_id=None, subject_id=None):
@@ -129,16 +119,15 @@ def list_assignments(page=1, limit=20, teacher_id=None,
     result["data"] = [_enrich(r) for r in result["data"]]
     return result
 
-
 def get_assignment(assignment_id):
     return _enrich(_get_or_404(assignment_id))
-
 
 def create_assignment(payload, actor_id=None):
     teacher = _ensure_teacher(payload.get("teacher_id"))
     cls = _ensure_class(payload.get("class_id"))
     subject = _ensure_subject(payload.get("subject_id"))
     semester = _ensure_semester(payload.get("semester_id"))
+    _ensure_same_academic_year(cls, semester)
 
     dup = teaching_assignment_repository.get_by_triplet(cls.id, subject.id, semester.id)
     if dup is not None:
@@ -156,7 +145,6 @@ def create_assignment(payload, actor_id=None):
     db.session.commit()
     return _enrich(row)
 
-
 def update_assignment(assignment_id, payload, actor_id=None):
     row = _get_or_404(assignment_id)
 
@@ -173,6 +161,9 @@ def update_assignment(assignment_id, payload, actor_id=None):
         new_subject_id = _ensure_subject(payload.get("subject_id")).id
     if payload.get("semester_id") not in (None, ""):
         new_semester_id = _ensure_semester(payload.get("semester_id")).id
+
+    _ensure_same_academic_year(
+        _ensure_class(new_class_id), _ensure_semester(new_semester_id))
 
     if (
         (new_class_id, new_subject_id, new_semester_id)
@@ -200,7 +191,6 @@ def update_assignment(assignment_id, payload, actor_id=None):
     db.session.commit()
     return _enrich(row)
 
-
 def delete_assignment(assignment_id, actor_id=None):
     row = _get_or_404(assignment_id)
     if bool(row.is_locked):
@@ -224,21 +214,8 @@ def delete_assignment(assignment_id, actor_id=None):
     db.session.commit()
     return snapshot
 
-
-# --------------------------------------------------------------------------- #
-# SD18 — Khóa / mở bảng điểm thủ công
-# --------------------------------------------------------------------------- #
-
-
 def set_lock(assignment_id, is_locked, actor_id=None):
-    """Khóa / mở bảng điểm thủ công (SD18).
 
-    * Khóa (``is_locked=True``): ``locked_at = now()`` — GV không sửa trực tiếp
-      được, muốn sửa phải gửi đơn phúc khảo (SD25).
-    * Mở (``is_locked=False``): ``locked_at = None`` — điểm chính thức giữ
-      nguyên ``is_draft = FALSE``; GV sửa sẽ chuyển dòng thành bản nháp rồi
-      gửi duyệt lại (SD23 → SD24).
-    """
     from datetime import datetime
 
     row = _get_or_404(assignment_id)

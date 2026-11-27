@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Xác thực mã OTP — Hệ thống Quản lý Học sinh</title>
+<meta name="description" content="Nhập mã OTP 6 số để đặt lại mật khẩu.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/tokens.css">
+<link rel="stylesheet" href="/assets/css/base.css">
+<link rel="stylesheet" href="/assets/css/layout.css">
+<link rel="stylesheet" href="/assets/css/components.css">
+<link rel="stylesheet" href="/assets/css/pages.css">
+</head>
+<body>
+
+<div class="auth-page">
+  <div class="auth-card" id="auth-card">
+
+    <div class="auth-card__brand">
+      <span class="auth-card__logo">TH</span>
+      <div>
+        <div class="t-body-medium">Trường THPT</div>
+        <div class="t-caption">Quản lý Học sinh &amp; Sổ điểm</div>
+      </div>
+    </div>
+
+    <!-- ==================== M2b — XÁC THỰC OTP ==================== -->
+    <section id="view-verify-otp">
+      <h1 class="auth-card__title">Xác thực mã OTP</h1>
+      <p class="auth-card__subtitle">
+        Nhập mã 6 số đã gửi tới email của bạn để tiếp tục đặt lại mật khẩu.
+      </p>
+
+      <div id="otp-alert" class="hidden" style="margin-bottom:16px"></div>
+
+      <form id="form-verify-otp" novalidate>
+        <div class="field" style="margin-bottom:16px">
+          <label class="field__label" for="otp-ident">
+            Email hoặc tên đăng nhập <span class="field__required" aria-hidden="true">*</span>
+          </label>
+          <input class="field__input" id="otp-ident" name="ident"
+                 autocomplete="username" autocapitalize="none" spellcheck="false"
+                 placeholder="Nhập email hoặc tên đăng nhập" required>
+        </div>
+
+        <div class="field" style="margin-bottom:16px">
+          <span class="field__label">Mã OTP <span class="field__required" aria-hidden="true">*</span></span>
+          <div class="otp-group" id="otp-group">
+            <input class="otp-input" type="text" inputmode="numeric" maxlength="1" aria-label="Số 1">
+            <input class="otp-input" type="text" inputmode="numeric" maxlength="1" aria-label="Số 2">
+            <input class="otp-input" type="text" inputmode="numeric" maxlength="1" aria-label="Số 3">
+            <input class="otp-input" type="text" inputmode="numeric" maxlength="1" aria-label="Số 4">
+            <input class="otp-input" type="text" inputmode="numeric" maxlength="1" aria-label="Số 5">
+            <input class="otp-input" type="text" inputmode="numeric" maxlength="1" aria-label="Số 6">
+          </div>
+          <p class="field__hint">
+            Mã hết hạn sau 5 phút và chỉ dùng được 1 lần.
+          </p>
+        </div>
+
+        <button type="submit" class="btn btn--primary btn--block" id="btn-verify-otp">
+          Xác thực mã OTP
+        </button>
+      </form>
+
+      <div class="row row--between" style="margin-top:16px">
+        <a href="#" class="t-body-medium" id="link-back-login" style="font-weight:500">
+          ← Quay lại đăng nhập
+        </a>
+        <button type="button" class="btn btn--ghost btn--sm" id="btn-resend">
+          Gửi lại mã
+        </button>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<div class="toast-container" role="status" aria-live="polite"></div>
+
+<script type="module" src="/assets/js/pages/reset-otp.js"></script>
+</body>
+</html>

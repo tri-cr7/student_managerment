@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hồ sơ cá nhân — Hệ thống Quản lý Học sinh</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/tokens.css">
+<link rel="stylesheet" href="/assets/css/base.css">
+<link rel="stylesheet" href="/assets/css/layout.css">
+<link rel="stylesheet" href="/assets/css/components.css">
+<link rel="stylesheet" href="/assets/css/pages.css">
+</head>
+<body>
+
+<div class="app-shell" id="app-shell"></div>
+
+<div class="toast-container" role="status" aria-live="polite"></div>
+
+<!-- ==================== Modal đổi mật khẩu bằng OTP ==================== -->
+<dialog class="modal" id="modal-otp">
+  <form method="dialog" class="modal__dialog" id="form-otp">
+    <header class="modal__header">
+      <div>
+        <h2 class="modal__title">Xác thực đổi mật khẩu</h2>
+        <p class="modal__subtitle" id="otp-subtitle"></p>
+      </div>
+      <button type="button" class="btn btn--icon" data-close aria-label="Đóng">✕</button>
+    </header>
+    <div class="modal__body">
+      <div id="otp-alert" class="hidden" style="margin-bottom:16px"></div>
+
+      <div class="field">
+        <label class="field__label" for="otp-password">Mật khẩu mới</label>
+        <input class="field__input" id="otp-password" type="text"
+               placeholder="Mật khẩu mới của bạn">
+      </div>
+
+      <div class="field" style="margin-top:16px">
+        <label class="field__label">
+          Mã xác thực 6 số <span class="field__required">*</span>
+        </label>
+        <div class="otp-group" id="otp-group"></div>
+        <p class="field__hint" id="otp-hint">
+          Mã đã được gửi tới email của bạn.
+        </p>
+      </div>
+    </div>
+    <footer class="modal__footer">
+      <button type="button" class="btn btn--secondary" data-close>Huỷ</button>
+      <button type="submit" class="btn btn--primary" id="btn-otp">Xác nhận</button>
+    </footer>
+  </form>
+</dialog>
+
+<script type="module" src="/assets/js/pages/profile.js"></script>
+</body>
+</html>

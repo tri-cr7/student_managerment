@@ -1,14 +1,4 @@
-"""ENTITY email_outbox — Hàng đợi gửi mail (Outbox Pattern).
-
-Vì sao không gửi mail trực tiếp trong transaction nghiệp vụ:
-nếu SMTP lỗi *sau khi* đã gửi mail nhưng *trước khi* commit → Giáo viên nhận mail
-"đã duyệt" trong khi DB rollback → mất tính nhất quán dữ liệu.
-
-Cách làm đúng: ``INSERT INTO email_outbox`` trong cùng transaction → sau ``COMMIT``,
-worker đọc outbox & gửi mail.
-"""
 from studentapp.extensions import db
-
 
 class EmailOutbox(db.Model):
     __tablename__ = "email_outbox"

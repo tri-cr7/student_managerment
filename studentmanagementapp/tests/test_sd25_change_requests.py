@@ -1,11 +1,3 @@
-"""Test SD25 — gửi đơn phúc khảo (yêu cầu chỉnh điểm) khi bảng điểm đã CHỐT.
-
-Nguyên tắc cốt lõi:
-* Bảng điểm **đang mở** → GV sửa trực tiếp, KHÔNG được gửi đơn (422 SCORE_TABLE_NOT_LOCKED).
-* Bảng điểm **đã chốt** → GV gửi đơn có cấu trúc, mỗi ô ghi rõ old_value + new_value.
-* ``old_value`` lấy từ DB ⇒ luôn có giá trị (bảng đã chốt không có ô NULL).
-* Giáo vụ duyệt/từ chối **từng ô** độc lập → đơn lô có thể duyệt 15/20 ô.
-"""
 import pytest
 
 from studentapp.extensions import db
@@ -14,9 +6,8 @@ from studentapp.models.score_change_detail import ScoreChangeDetail
 from studentapp.models.score_change_request import ScoreChangeRequest
 from studentapp.services import score_service
 
-
 def _seed_locked_scores(seed_data):
-    """Tạo bảng điểm đã CHỐT: điểm chính thức + assignment.is_locked = True."""
+
     rows = []
     for i, st in enumerate(seed_data["students"]):
         rows.append(
@@ -37,12 +28,10 @@ def _seed_locked_scores(seed_data):
     seed_data["assignment"].is_locked = True
     db.session.commit()
 
-
 class TestCreateChangeRequest:
-    """SD25 — Tạo đơn phúc khảo."""
 
     def test_creates_request_with_details(self, app, seed_data):
-        """Tạo đơn 1 ô ⇒ 1 detail, có old_value (từ DB) + new_value."""
+
         _seed_locked_scores(seed_data)
         st = seed_data["students"][0]
         result = score_service.create_change_request(
@@ -65,7 +54,7 @@ class TestCreateChangeRequest:
         assert detail["new_value"] == 9.0
 
     def test_creates_batch_request(self, app, seed_data):
-        """Đơn nhiều ô ⇒ is_batch = True, total_changes = số ô."""
+
         _seed_locked_scores(seed_data)
         s1, s2 = seed_data["students"][0], seed_data["students"][1]
         result = score_service.create_change_request(
@@ -84,7 +73,7 @@ class TestCreateChangeRequest:
         assert len(result["details"]) == 2
 
     def test_old_value_is_not_null(self, app, seed_data):
-        """old_value lấy từ DB ⇒ không bao giờ NULL (bảng đã chốt)."""
+
         _seed_locked_scores(seed_data)
         st = seed_data["students"][0]
         score_service.create_change_request(
@@ -102,7 +91,7 @@ class TestCreateChangeRequest:
         assert float(detail.old_value) == 7.0
 
     def test_persists_to_database(self, app, seed_data):
-        """Đơn & details được lưu xuống DB."""
+
         _seed_locked_scores(seed_data)
         st = seed_data["students"][0]
         score_service.create_change_request(
@@ -119,7 +108,7 @@ class TestCreateChangeRequest:
         assert ScoreChangeDetail.query.count() == 1
 
     def test_does_not_change_actual_score(self, app, seed_data):
-        """Gửi đơn KHÔNG thay đổi điểm thực tế — chờ Giáo vụ duyệt."""
+
         _seed_locked_scores(seed_data)
         st = seed_data["students"][0]
         score_service.create_change_request(
@@ -134,14 +123,12 @@ class TestCreateChangeRequest:
         )
         row = Score.query.filter_by(student_id=st.id).first()
         db.session.refresh(row)
-        assert float(row.score_15m_1) == 7.0  # vẫn là giá trị cũ
-
+        assert float(row.score_15m_1) == 7.0
 
 class TestChangeRequestValidation:
-    """Validation của SD25."""
 
     def test_rejects_when_table_not_locked(self, app, seed_data):
-        """Bảng đang MỞ ⇒ không được gửi đơn (phải sửa trực tiếp)."""
+
         from studentapp.exceptions import ScoreTableNotLockedError
 
         st = seed_data["students"][0]
@@ -163,7 +150,7 @@ class TestChangeRequestValidation:
             )
 
     def test_rejects_missing_reason(self, app, seed_data):
-        """Thiếu lý do ⇒ bị từ chối."""
+
         from studentapp.exceptions import ValidationError
 
         _seed_locked_scores(seed_data)
@@ -181,7 +168,7 @@ class TestChangeRequestValidation:
             )
 
     def test_rejects_empty_changes(self, app, seed_data):
-        """Danh sách changes rỗng ⇒ bị từ chối."""
+
         from studentapp.exceptions import ValidationError
 
         _seed_locked_scores(seed_data)
@@ -196,7 +183,7 @@ class TestChangeRequestValidation:
             )
 
     def test_rejects_invalid_column(self, app, seed_data):
-        """Cột điểm không hợp lệ ⇒ bị từ chối (rule A2)."""
+
         from studentapp.exceptions import InvalidColumnNameError
 
         _seed_locked_scores(seed_data)
@@ -214,7 +201,7 @@ class TestChangeRequestValidation:
             )
 
     def test_rejects_out_of_range_new_value(self, app, seed_data):
-        """new_value ngoài [0, 10] ⇒ bị từ chối (rule A1)."""
+
         from studentapp.exceptions import InvalidScoreRangeError
 
         _seed_locked_scores(seed_data)
@@ -232,7 +219,7 @@ class TestChangeRequestValidation:
             )
 
     def test_rejects_same_value(self, app, seed_data):
-        """new_value trùng old_value ⇒ bị từ chối (đơn vô nghĩa)."""
+
         from studentapp.exceptions import ValidationError
 
         _seed_locked_scores(seed_data)
@@ -250,7 +237,7 @@ class TestChangeRequestValidation:
             )
 
     def test_rejects_duplicate_cell(self, app, seed_data):
-        """Trùng ô điểm trong 1 đơn ⇒ bị từ chối (rule A5)."""
+
         from studentapp.exceptions import ValidationError
 
         _seed_locked_scores(seed_data)
@@ -268,12 +255,10 @@ class TestChangeRequestValidation:
                 seed_data["teacher"].id,
             )
 
-
 class TestChangeRequestAuthorization:
-    """Quyền truy cập SD25."""
 
     def test_forbidden_for_other_teacher(self, app, seed_data):
-        """GV khác không gửi được đơn cho lớp không phụ trách (rule A11)."""
+
         from studentapp.exceptions import PermissionDeniedError
 
         _seed_locked_scores(seed_data)
@@ -290,9 +275,7 @@ class TestChangeRequestAuthorization:
                 seed_data["other_teacher"].id,
             )
 
-
 class TestChangeRequestEndpoints:
-    """API của SD25."""
 
     def test_create_endpoint(self, app, client, seed_data, auth_headers):
         _seed_locked_scores(seed_data)
@@ -355,3 +338,166 @@ class TestChangeRequestEndpoints:
         data = resp.get_json()["data"]
         assert len(data) == 1
         assert len(data[0]["details"]) == 1
+
+class TestChangeRequestAttachment:
+
+    def test_saves_attachment_to_request(self, app, seed_data):
+
+        _seed_locked_scores(seed_data)
+        st = seed_data["students"][0]
+        result = score_service.create_change_request(
+            {
+                "assignment_id": seed_data["assignment"].id,
+                "reason": "Xin sửa điểm kèm biên bản.",
+                "changes": [
+                    {"student_id": st.id, "score_column": "score_15m_1", "new_value": 9.0}
+                ],
+                "attachment_path": "score_requests/2026/11/bai_thi.png",
+                "attachment_type": "IMAGE",
+                "attachment_name": "bai_thi.png",
+            },
+            seed_data["teacher"].id,
+        )
+        assert result["attachment_path"] == "score_requests/2026/11/bai_thi.png"
+        assert result["attachment_type"] == "IMAGE"
+        assert result["attachment_name"] == "bai_thi.png"
+
+        row = ScoreChangeRequest.query.one()
+        assert row.attachment_path == "score_requests/2026/11/bai_thi.png"
+        assert row.attachment_type == "IMAGE"
+
+    def test_attachment_is_optional(self, app, seed_data):
+
+        _seed_locked_scores(seed_data)
+        st = seed_data["students"][0]
+        result = score_service.create_change_request(
+            {
+                "assignment_id": seed_data["assignment"].id,
+                "reason": "Gõ nhầm số.",
+                "changes": [
+                    {"student_id": st.id, "score_column": "score_15m_1", "new_value": 9.0}
+                ],
+            },
+            seed_data["teacher"].id,
+        )
+        assert result["attachment_path"] is None
+        assert result["attachment_type"] is None
+
+    def test_rejects_path_traversal(self, app, seed_data):
+
+        from studentapp.exceptions import ValidationError
+
+        _seed_locked_scores(seed_data)
+        st = seed_data["students"][0]
+        with pytest.raises(ValidationError):
+            score_service.create_change_request(
+                {
+                    "assignment_id": seed_data["assignment"].id,
+                    "reason": "Xin sửa điểm.",
+                    "changes": [
+                        {"student_id": st.id, "score_column": "score_15m_1", "new_value": 9.0}
+                    ],
+                    "attachment_path": "../../etc/passwd",
+                    "attachment_type": "IMAGE",
+                },
+                seed_data["teacher"].id,
+            )
+
+    def test_rejects_invalid_attachment_type(self, app, seed_data):
+
+        from studentapp.exceptions import ValidationError
+
+        _seed_locked_scores(seed_data)
+        st = seed_data["students"][0]
+        with pytest.raises(ValidationError):
+            score_service.create_change_request(
+                {
+                    "assignment_id": seed_data["assignment"].id,
+                    "reason": "Xin sửa điểm.",
+                    "changes": [
+                        {"student_id": st.id, "score_column": "score_15m_1", "new_value": 9.0}
+                    ],
+                    "attachment_path": "score_requests/2026/11/a.zip",
+                    "attachment_type": "ZIP",
+                },
+                seed_data["teacher"].id,
+            )
+
+class TestDuplicatePendingAppeal:
+
+    def test_rejects_duplicate_pending_cell(self, app, seed_data):
+
+        from studentapp.exceptions import DuplicatePendingAppealError
+
+        _seed_locked_scores(seed_data)
+        st = seed_data["students"][0]
+        payload = {
+            "assignment_id": seed_data["assignment"].id,
+            "reason": "Xin sửa điểm.",
+            "changes": [
+                {"student_id": st.id, "score_column": "score_15m_1", "new_value": 9.0}
+            ],
+        }
+        score_service.create_change_request(payload, seed_data["teacher"].id)
+
+        with pytest.raises(DuplicatePendingAppealError) as exc:
+            score_service.create_change_request(
+                {
+                    **payload,
+                    "changes": [
+                        {"student_id": st.id, "score_column": "score_15m_1", "new_value": 9.5}
+                    ],
+                },
+                seed_data["teacher"].id,
+            )
+        assert exc.value.cells == [
+            {"student_id": st.id, "score_column": "score_15m_1"}
+        ]
+
+    def test_allows_different_cell(self, app, seed_data):
+
+        _seed_locked_scores(seed_data)
+        s1, s2 = seed_data["students"][0], seed_data["students"][1]
+        score_service.create_change_request(
+            {
+                "assignment_id": seed_data["assignment"].id,
+                "reason": "Xin sửa điểm.",
+                "changes": [
+                    {"student_id": s1.id, "score_column": "score_15m_1", "new_value": 9.0}
+                ],
+            },
+            seed_data["teacher"].id,
+        )
+        result = score_service.create_change_request(
+            {
+                "assignment_id": seed_data["assignment"].id,
+                "reason": "Xin sửa điểm ô khác.",
+                "changes": [
+                    {"student_id": s2.id, "score_column": "score_15m_1", "new_value": 9.0}
+                ],
+            },
+            seed_data["teacher"].id,
+        )
+        assert result["status"] == "PENDING"
+        assert ScoreChangeRequest.query.count() == 2
+
+    def test_endpoint_returns_409_with_cells(self, app, client, seed_data, auth_headers):
+
+        _seed_locked_scores(seed_data)
+        st = seed_data["students"][0]
+        body = {
+            "assignment_id": seed_data["assignment"].id,
+            "reason": "Xin sửa điểm.",
+            "changes": [
+                {"student_id": st.id, "score_column": "score_15m_1", "new_value": 9.0}
+            ],
+        }
+        headers = auth_headers("TEACHER", seed_data["teacher"].id)
+        assert client.post("/api/v1/score-requests", json=body, headers=headers).status_code == 201
+
+        body["changes"][0]["new_value"] = 9.5
+        resp = client.post("/api/v1/score-requests", json=body, headers=headers)
+        assert resp.status_code == 409
+        payload = resp.get_json()
+        assert payload["error"] == "DUPLICATE_PENDING_APPEAL"
+        assert payload["cells"][0]["score_column"] == "score_15m_1"

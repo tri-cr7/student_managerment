@@ -1,4 +1,3 @@
-"""API profile cá nhân SD02."""
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
 from flask_login import current_user
@@ -10,10 +9,8 @@ from studentapp.exceptions import AppError
 
 bp = Blueprint("profile", __name__, url_prefix="/api/v1/profile")
 
-
 def _err(e: AppError):
     return jsonify({"error": e.error, "message": e.message}), e.status_code
-
 
 def _uid():
     try:
@@ -30,7 +27,6 @@ def _uid():
         pass
     return None
 
-
 @bp.get("")
 @login_required_any
 def get_profile():
@@ -41,7 +37,6 @@ def get_profile():
             "message": "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại!",
         }), 401
     return jsonify({"success": True, "message": "OK", "data": u.public_dict()}), 200
-
 
 @bp.patch("")
 @login_required_any
@@ -55,7 +50,6 @@ def update_profile():
     except AppError as e:
         return _err(e)
 
-
 @bp.post("/change-password")
 @login_required_any
 def change_password():
@@ -68,7 +62,6 @@ def change_password():
         "message": "Đổi mật khẩu thành công. Vui lòng sử dụng mật khẩu mới cho lần đăng nhập kế tiếp.",
         "data": None,
     }), 200
-
 
 @bp.post("/change-password/request")
 @login_required_any
@@ -84,7 +77,6 @@ def change_password_request():
         "message": "Mã OTP 6 số đã được gửi về email. Mã hết hạn sau 5 phút, 1 lần dùng.",
         "data": {"email_sent_status": status},
     }), 200
-
 
 @bp.post("/change-password/confirm")
 @login_required_any

@@ -1,19 +1,4 @@
-"""ENTITY score_submissions — Đơn gửi duyệt bảng điểm (SD23/SD24).
-
-Vòng đời trạng thái::
-
-    (chưa gửi) --Gửi duyệt--> PENDING --+-- Giáo vụ DUYỆT ----> APPROVED
-                                         |
-                                         +-- Giáo vụ TỪ CHỐI --> REJECTED
-                                         |
-                                         +-- GV bấm Hủy ------> CANCELLED
-
-* ``PENDING``   → GV **không sửa được** bảng điểm tạm (423 ``SCORE_SUBMISSION_PENDING``).
-* ``CANCELLED`` → GV sửa lại được rồi gửi duyệt lại (bản ghi cũ giữ làm lịch sử).
-* ``APPROVED``  → bảng điểm đã chốt, GV không sửa được → phải gửi đơn phúc khảo (SD25).
-"""
 from studentapp.extensions import db
-
 
 class SubmissionStatusEnum:
     PENDING = "PENDING"
@@ -22,9 +7,8 @@ class SubmissionStatusEnum:
     CANCELLED = "CANCELLED"
 
     ALL = (PENDING, APPROVED, REJECTED, CANCELLED)
-    #: Trạng thái mà Giáo viên còn có thể hủy.
-    CANCELLABLE = (PENDING,)
 
+    CANCELLABLE = (PENDING,)
 
 class ScoreSubmission(db.Model):
     __tablename__ = "score_submissions"

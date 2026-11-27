@@ -1,4 +1,3 @@
-"""API GET /api/v1/health — kiểm tra sống/chết + DB."""
 from flask import Blueprint
 from sqlalchemy import text
 
@@ -7,7 +6,6 @@ from studentapp.utils.helpers import ok
 
 bp = Blueprint("health", __name__, url_prefix="/api/v1")
 
-
 @bp.get("/health")
 def health():
     try:
@@ -15,7 +13,6 @@ def health():
         return ok({"db": "up"}, "API sống.")
     except Exception as e:
         return ok({"db": f"down: {e}"}, "DB lỗi.", 500)
-
 
 @bp.get("")
 def index():

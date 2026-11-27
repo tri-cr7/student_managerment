@@ -1,14 +1,4 @@
-"""Test SD18 — Khóa / mở bảng điểm thủ công (Giáo vụ).
-
-Bao phủ:
-* Service: lock → is_locked=True + locked_at có giá trị; unlock → False + None;
-  404 khi assignment không tồn tại; audit log được ghi.
-* Nghiệp vụ liên động: sau khi khóa, GV không sửa điểm trực tiếp được
-  (423 SCORE_TABLE_LOCKED); sau khi mở lại, GV sửa được.
-* API: 401 thiếu token, 403 sai role, 400 thiếu is_locked, ACADEMIC lock/unlock đủ vòng.
-"""
 from studentapp.services import assignment_service
-
 
 class TestSetLockService:
     def test_lock_sets_flag_and_timestamp(self, app, seed_data):
@@ -54,7 +44,7 @@ class TestSetLockService:
         assert row.details["assignment_id"] == seed_data["assignment"].id
 
     def test_teacher_blocked_after_lock(self, app, seed_data):
-        """Khóa xong → GV sửa điểm trực tiếp bị 423 (rule A8)."""
+
         from studentapp.exceptions import ScoreTableLockedError
         from studentapp.services import score_service
 
@@ -73,7 +63,6 @@ class TestSetLockService:
         except ScoreTableLockedError:
             return
         raise AssertionError("Bảng điểm đã khóa mà GV vẫn sửa được!")
-
 
 class TestLockEndpoints:
     def test_requires_authentication(self, app, client, seed_data):

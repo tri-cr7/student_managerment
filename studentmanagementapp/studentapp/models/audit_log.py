@@ -1,6 +1,4 @@
-"""ENTITY audit_logs."""
 from studentapp.extensions import db
-
 
 class AuditLog(db.Model):
     __tablename__ = "audit_logs"

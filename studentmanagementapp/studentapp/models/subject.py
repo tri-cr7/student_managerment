@@ -1,6 +1,4 @@
-"""ENTITY subjects — Danh mục môn học (Yêu cầu 5)."""
 from studentapp.extensions import db
-
 
 class Subject(db.Model):
     __tablename__ = "subjects"

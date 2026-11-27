@@ -1,13 +1,10 @@
-"""ENTITY password_otps."""
 from datetime import datetime
 
 from studentapp.extensions import db
 
-
 class OtpPurpose:
     FORGOT = "FORGOT"
     CHANGE = "CHANGE"
-
 
 class PasswordOtp(db.Model):
     __tablename__ = "password_otps"

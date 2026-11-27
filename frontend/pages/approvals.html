@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phê duyệt phúc khảo — Hệ thống Quản lý Học sinh</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/tokens.css">
+<link rel="stylesheet" href="/assets/css/base.css">
+<link rel="stylesheet" href="/assets/css/layout.css">
+<link rel="stylesheet" href="/assets/css/components.css">
+<link rel="stylesheet" href="/assets/css/pages.css">
+</head>
+<body>
+
+<div class="app-shell" id="app-shell"></div>
+
+<div class="toast-container" role="status" aria-live="polite"></div>
+
+<!-- ==================== Modal phê duyệt đơn phúc khảo ==================== -->
+<dialog class="modal" id="modal-approval">
+  <div class="modal__dialog modal__dialog--960">
+    <header class="modal__header">
+      <div>
+        <h2 class="modal__title" id="ap-title">Phê duyệt đơn phúc khảo</h2>
+        <p class="modal__subtitle" id="ap-subtitle"></p>
+      </div>
+      <button type="button" class="btn btn--icon" data-close aria-label="Đóng">✕</button>
+    </header>
+    <div class="modal__body">
+      <div id="ap-meta"></div>
+
+      <div class="field-group">
+        <div class="field-group__title">
+          Bảng so sánh điểm — quyết định từng ô
+        </div>
+
+        <div class="alert alert--warning" style="margin-bottom:12px">
+          <span class="alert__icon" data-alert-icon></span>
+          <div class="alert__body">
+            <div class="alert__message">
+              Chọn <strong>Duyệt</strong> hoặc <strong>Từ chối</strong> cho từng ô điểm.
+              Ô chọn "Từ chối" bắt buộc phải có lý do.
+            </div>
+          </div>
+        </div>
+
+        <div class="table-wrap" style="max-height:340px;overflow-y:auto">
+          <table class="table diff-table">
+            <thead class="table__head">
+              <tr>
+                <th>Học sinh</th>
+                <th>Cột điểm</th>
+                <th class="table__cell--center">Hiện tại</th>
+                <th class="table__cell--center">Đề nghị</th>
+                <th>Lý do</th>
+                <th style="min-width:150px">Quyết định</th>
+              </tr>
+            </thead>
+            <tbody id="ap-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <div class="field-group__title">Ghi chú phê duyệt</div>
+        <div class="field">
+          <textarea class="field__textarea" id="ap-note"
+                    placeholder="Ghi chú chung cho cả đơn (không bắt buộc)"></textarea>
+        </div>
+      </div>
+    </div>
+    <footer class="modal__footer">
+      <button type="button" class="btn btn--ghost" id="btn-approve-all">
+        Duyệt tất cả
+      </button>
+      <button type="button" class="btn btn--secondary" id="btn-reject-all">
+        Từ chối tất cả
+      </button>
+      <button type="button" class="btn btn--primary" id="btn-submit-decisions">
+        Gửi quyết định
+      </button>
+    </footer>
+  </div>
+</dialog>
+
+<script type="module" src="/assets/js/pages/approvals.js"></script>
+</body>
+</html>

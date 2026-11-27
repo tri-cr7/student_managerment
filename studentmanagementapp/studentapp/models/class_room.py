@@ -1,6 +1,4 @@
-"""ENTITY classes — Lớp học (Yêu cầu 2)."""
 from studentapp.extensions import db
-
 
 class Class(db.Model):
     __tablename__ = "classes"
@@ -19,6 +17,17 @@ class Class(db.Model):
 
     grade = db.relationship("Grade", backref=db.backref("classes", lazy=True))
     academic_year = db.relationship("AcademicYear", backref=db.backref("classes", lazy=True))
+
+    homeroom_teacher = db.relationship(
+        "User", backref=db.backref("homeroom_classes", lazy=True)
+    )
+
+    __table_args__ = (
+        db.UniqueConstraint(
+            "class_name", "academic_year_id", name="uq_class_name_year"
+        ),
+        db.Index("idx_classes_grade_year", "grade_id", "academic_year_id"),
+    )
 
     def to_dict(self):
         return {

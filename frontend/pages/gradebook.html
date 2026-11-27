@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bảng điểm — Hệ thống Quản lý Học sinh</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/tokens.css">
+<link rel="stylesheet" href="/assets/css/base.css">
+<link rel="stylesheet" href="/assets/css/layout.css">
+<link rel="stylesheet" href="/assets/css/components.css">
+<link rel="stylesheet" href="/assets/css/pages.css">
+</head>
+<body>
+
+<div class="app-shell" id="app-shell"></div>
+
+<div class="toast-container" role="status" aria-live="polite"></div>
+
+<!-- ==================== M13 — Modal gửi đơn phúc khảo ==================== -->
+<dialog class="modal" id="modal-appeal">
+  <form method="dialog" class="modal__dialog modal__dialog--720" id="form-appeal">
+    <header class="modal__header">
+      <div>
+        <h2 class="modal__title">Gửi đơn phúc khảo</h2>
+        <p class="modal__subtitle" id="appeal-subtitle"></p>
+      </div>
+      <button type="button" class="btn btn--icon" data-close aria-label="Đóng">✕</button>
+    </header>
+    <div class="modal__body">
+      <div id="appeal-alert" class="hidden" style="margin-bottom:16px"></div>
+
+      <div class="alert alert--warning" style="margin-bottom:16px">
+        <span class="alert__icon" id="appeal-warn-icon"></span>
+        <div class="alert__body">
+          <div class="alert__message">
+            Đơn phúc khảo chỉ dành cho bảng điểm đã khoá. Mỗi ô điểm bạn chọn
+            sẽ được Giáo vụ duyệt/từ chối riêng.
+          </div>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <div class="field-group__title">Chọn ô điểm cần phúc khảo</div>
+        <div class="table-wrap" style="max-height:260px;overflow-y:auto">
+          <table class="table" id="appeal-table">
+            <thead class="table__head">
+              <tr>
+                <th style="width:36px"></th>
+                <th>Học sinh</th>
+                <th>Cột điểm</th>
+                <th>Điểm hiện tại</th>
+                <th>Điểm đề xuất</th>
+              </tr>
+            </thead>
+            <tbody id="appeal-tbody"></tbody>
+          </table>
+        </div>
+        <p class="field__hint" id="appeal-count"></p>
+      </div>
+
+      <div class="field-group">
+        <div class="field-group__title">Lý do phúc khảo</div>
+        <div class="field">
+          <label class="field__label" for="appeal-reason">
+            Nội dung giải trình <span class="field__required">*</span>
+          </label>
+          <textarea class="field__textarea" id="appeal-reason" name="reason"
+                    placeholder="Mô tả lý do phúc khảo, ví dụ: nhận nhầm điểm ở phần kiểm tra 15 phút..."></textarea>
+        </div>
+      </div>
+    </div>
+    <footer class="modal__footer">
+      <button type="button" class="btn btn--secondary" data-close>Huỷ</button>
+      <button type="submit" class="btn btn--primary" id="btn-appeal">Gửi đơn</button>
+    </footer>
+  </form>
+</dialog>
+
+<!-- ==================== Modal gửi bảng điểm duyệt ==================== -->
+<dialog class="modal" id="modal-submit">
+  <form method="dialog" class="modal__dialog" id="form-submit">
+    <header class="modal__header">
+      <div>
+        <h2 class="modal__title">Gửi bảng điểm duyệt</h2>
+        <p class="modal__subtitle" id="submit-subtitle"></p>
+      </div>
+      <button type="button" class="btn btn--icon" data-close aria-label="Đóng">✕</button>
+    </header>
+    <div class="modal__body">
+      <div id="submit-alert" class="hidden" style="margin-bottom:16px"></div>
+      <p class="t-body">
+        Sau khi gửi, bảng điểm sẽ ở trạng thái <strong>chờ duyệt</strong> và bạn
+        không thể sửa điểm cho đến khi Giáo vụ duyệt hoặc bạn huỷ đơn.
+      </p>
+      <div id="submit-summary" class="alert alert--info" style="margin-top:16px">
+        <span class="alert__icon" id="submit-info-icon"></span>
+        <div class="alert__body">
+          <div class="alert__message" id="submit-info-text"></div>
+        </div>
+      </div>
+    </div>
+    <footer class="modal__footer">
+      <button type="button" class="btn btn--secondary" data-close>Huỷ</button>
+      <button type="submit" class="btn btn--primary" id="btn-submit">Gửi duyệt</button>
+    </footer>
+  </form>
+</dialog>
+
+<!-- ==================== Modal huỷ đơn gửi duyệt ==================== -->
+<dialog class="modal" id="modal-cancel">
+  <form method="dialog" class="modal__dialog" id="form-cancel">
+    <header class="modal__header">
+      <div>
+        <h2 class="modal__title">Huỷ đơn gửi duyệt</h2>
+        <p class="modal__subtitle" id="cancel-subtitle"></p>
+      </div>
+      <button type="button" class="btn btn--icon" data-close aria-label="Đóng">✕</button>
+    </header>
+    <div class="modal__body">
+      <div id="cancel-alert" class="hidden" style="margin-bottom:16px"></div>
+      <div class="field">
+        <label class="field__label" for="cancel-reason">Lý do huỷ</label>
+        <textarea class="field__textarea" id="cancel-reason" name="reason"
+                  placeholder="Ghi chú lý do huỷ đơn gửi duyệt (không bắt buộc)"></textarea>
+      </div>
+    </div>
+    <footer class="modal__footer">
+      <button type="button" class="btn btn--secondary" data-close>Huỷ</button>
+      <button type="submit" class="btn btn--danger" id="btn-cancel">Huỷ đơn</button>
+    </footer>
+  </form>
+</dialog>
+
+<script type="module" src="/assets/js/pages/gradebook.js"></script>
+</body>
+</html>

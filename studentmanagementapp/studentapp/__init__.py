@@ -1,12 +1,17 @@
-"""APP FACTORY — create_app(config_name). JWT chính, session fallback /admin."""
-from flask import Flask, jsonify
+import os
+
+from flask import Flask, jsonify, request, send_from_directory
 
 from config import config_by_name
 from studentapp.extensions import db, migrate, login, csrf, jwt
 from studentapp.exceptions import AppError
 
+FRONTEND_DIR = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "..", "frontend")
+)
 
 def create_app(config_name="default"):
+
     app = Flask(__name__)
     app.config.from_object(config_by_name.get(config_name, config_by_name["default"]))
 
@@ -16,7 +21,7 @@ def create_app(config_name="default"):
     jwt.init_app(app)
     csrf.init_app(app)
 
-    from studentapp import models  # noqa: F401
+    from studentapp import models
     from studentapp.controllers import ALL_BLUEPRINTS
 
     for bp in ALL_BLUEPRINTS:
@@ -26,6 +31,9 @@ def create_app(config_name="default"):
     from studentapp.controllers.admin_controller import init_admin
 
     init_admin(app)
+
+    init_cors(app)
+    init_frontend(app)
 
     from studentapp.repositories import user_repository
 
@@ -72,3 +80,61 @@ def create_app(config_name="default"):
         return jsonify({"error": "BAD_REQUEST", "message": "Sai method."}), 405
 
     return app
+
+def init_cors(app):
+
+    allowed = app.config.get(
+        "CORS_ORIGINS",
+        os.environ.get(
+            "CORS_ORIGINS",
+            "http://localhost:5500,http://127.0.0.1:5500,"
+            "http://localhost:3000,http://127.0.0.1:3000,"
+            "http://localhost:5173,http://127.0.0.1:5173",
+        ),
+    )
+    if isinstance(allowed, str):
+        allowed = [o.strip() for o in allowed.split(",") if o.strip()]
+
+    @app.after_request
+    def add_cors_headers(response):
+        origin = request.headers.get("Origin")
+        if origin and (origin in allowed or "*" in allowed):
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Vary"] = "Origin"
+        response.headers["Access-Control-Allow-Methods"] = (
+            "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+        )
+        response.headers["Access-Control-Allow-Headers"] = (
+            "Content-Type, Authorization, X-Requested-With, Accept"
+        )
+        response.headers["Access-Control-Max-Age"] = "600"
+        return response
+
+    @app.route("/<path:_any>", methods=["OPTIONS"])
+    def cors_preflight(_any):
+        return ("", 204)
+
+def init_frontend(app):
+
+    if not os.path.isdir(FRONTEND_DIR):
+        return
+
+    @app.get("/")
+    def index():
+        return send_from_directory(os.path.join(FRONTEND_DIR, "pages"), "index.html")
+
+    @app.get("/<path:filename>")
+    def static_files(filename):
+
+        pages_dir = os.path.join(FRONTEND_DIR, "pages")
+        if os.path.isfile(os.path.join(pages_dir, filename)):
+            return send_from_directory(pages_dir, filename)
+
+        if os.path.isfile(os.path.join(FRONTEND_DIR, filename)):
+            resp = send_from_directory(FRONTEND_DIR, filename)
+
+            resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            resp.headers["Pragma"] = "no-cache"
+            resp.headers["Expires"] = "0"
+            return resp
+        return jsonify({"error": "NOT_FOUND", "message": "Không tìm thấy."}), 404

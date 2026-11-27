@@ -1,12 +1,3 @@
-"""SERVICE score — nghiệp vụ điểm số cho Giáo viên (SD09/SD11/SD14/SD23/SD25).
-
-Nguyên tắc xuyên suốt:
-* **Bảng điểm tạm** (``scores.is_draft = TRUE``) là nơi GV nhập/sửa.
-* **Bảng điểm đã CHỐT** (``teaching_assignments.is_locked = TRUE``) → GV không
-  sửa trực tiếp được, phải gửi đơn phúc khảo (SD25).
-* **Đang có đơn gửi duyệt PENDING** → GV không sửa được, phải hủy đơn trước.
-* **Partial update**: ô gửi lên với ``null`` → giữ nguyên giá trị trong DB.
-"""
 from datetime import datetime
 
 from studentapp.exceptions import (
@@ -25,23 +16,15 @@ from studentapp.repositories import (
 )
 from studentapp.services import score_calculator, teacher_service
 
-
 def _passing_score() -> float:
     from studentapp.repositories import system_rule_repository
 
     return system_rule_repository.get_float("PASSING_SCORE", 5.0)
 
-
-#: Nhập "v" (vắng) được quy về 0 điểm — vẫn tính vào ĐTB.
 ABSENT_ALIASES = frozenset({"v", "vang", "vắng", "absent"})
 
-
 def _parse_score(value):
-    """Chuyển giá trị ô điểm về float; trả về None nếu chưa nhập (null).
 
-    Quy ước vắng: nhập ``"v"`` (hoặc ``vang``/``vắng``) → hiểu là vắng,
-    lưu thành ``0.0`` và **vẫn tính vào ĐTB**.
-    """
     if value is None:
         return None
     if isinstance(value, str):
@@ -59,9 +42,8 @@ def _parse_score(value):
             "(nhập số 0–10, hoặc 'v' nếu học sinh vắng)."
         )
 
-
 def _validate_score_value(value: float):
-    """Kiểm tra điểm nằm trong khoảng [0.0, 10.0] (rule A1)."""
+
     from studentapp.models.score import MAX_SCORE, MIN_SCORE
 
     if value < MIN_SCORE or value > MAX_SCORE:
@@ -70,13 +52,8 @@ def _validate_score_value(value: float):
             f"[{MIN_SCORE}, {MAX_SCORE}]!"
         )
 
-
 def _active_column_config():
-    """Số cột điểm ĐANG DÙNG theo system_rules (rule A2/A3/A4).
 
-    DB giữ nguyên 9 cột tối đa; UI + kiểm tra "đủ điểm" chỉ tính các cột
-    đang dùng: N_15m = MAX_COL_15M, N_45m = MAX_COL_45M, N_final = NUM_COL_FINAL.
-    """
     from studentapp.models.score import (
         SCORE_COLUMNS_15M,
         SCORE_COLUMNS_45M,
@@ -107,19 +84,12 @@ def _active_column_config():
         "counts": {"15m": n15, "45m": n45, "final": nfin},
     }
 
-
 def get_score_column_config():
-    """Cấu hình cột điểm cho UI (nhóm gọn + cột đang dùng)."""
+
     return _active_column_config()
 
-
-# --------------------------------------------------------------------------- #
-# SD09 — Danh sách lớp phụ trách
-# --------------------------------------------------------------------------- #
-
-
 def list_my_assignments(teacher_id):
-    """Danh sách lớp môn học GV phụ trách, kèm thông tin lớp/môn/kỳ."""
+
     assignments = teacher_service.list_my_assignments(teacher_id)
     result = []
     for a in assignments:
@@ -138,14 +108,8 @@ def list_my_assignments(teacher_id):
         result.append(item)
     return result
 
-
-# --------------------------------------------------------------------------- #
-# SD11 — Nhập điểm (lưu bảng điểm tạm)
-# --------------------------------------------------------------------------- #
-
-
 def _validate_batch_shape(payload):
-    """Kiểm tra cấu trúc request: assignment_id + scores[] (rule A5 - không trùng HS)."""
+
     assignment_id = payload.get("assignment_id")
     if not assignment_id:
         raise ValidationError("Thiếu assignment_id trong request.")
@@ -161,19 +125,18 @@ def _validate_batch_shape(payload):
             raise ValidationError("Mỗi dòng điểm phải có student_id.")
         sid = int(sid)
         if sid in seen:
-            from studentapp.exceptions import ValidationError as VE
+            from studentapp.exceptions import DuplicateStudentInBatchError
 
-            raise VE(
+            raise DuplicateStudentInBatchError(
                 f"Học sinh id={sid} bị trùng trong cùng một request.",
-                error="DUPLICATE_STUDENT_IN_BATCH",
+                student_id=sid,
             )
         seen.add(sid)
 
     return int(assignment_id), scores
 
-
 def _reject_inactive_columns(row, active_columns):
-    """Rule A2/A3/A4 — chặn ghi vào cột vượt quá số cột quy định."""
+
     from studentapp.exceptions import InvalidColumnCountError
 
     active = set(active_columns)
@@ -187,63 +150,87 @@ def _reject_inactive_columns(row, active_columns):
                 f"1 tiết: {len([c for c in active_columns if '45m' in c])}). "
                 "Vui lòng liên hệ Giáo vụ nếu muốn mở thêm cột!"
             )
+        if col not in ALL_SCORE_COLUMNS:
+            from studentapp.exceptions import InvalidColumnNameError
 
+            raise InvalidColumnNameError(
+                f"Cột điểm không hợp lệ: {col!r}. "
+                f"Chỉ chấp nhận: {', '.join(ALL_SCORE_COLUMNS)}."
+            )
 
 def save_batch_scores(payload, teacher_id):
-    """SD11 — Lưu điểm lớp vào bảng điểm tạm (partial update).
 
-    * Ô ``null`` → **giữ nguyên** giá trị đang có trong DB (không xoá điểm đã chấm).
-    * Ô có giá trị → kiểm tra [0, 10] rồi ghi.
-    * Tính lại ĐTB & trạng thái Đạt cho từng học sinh.
-    """
     assignment_id, rows = _validate_batch_shape(payload)
 
-    # Rule A7/A11 — GV phải phụ trách lớp môn học
     assignment = teacher_service.ensure_teacher_owns_assignment(assignment_id, teacher_id)
-    # Rule A8 — bảng điểm phải đang MỞ
+
     teacher_service.ensure_assignment_open(assignment)
-    # Rule A10 — không có đơn gửi duyệt đang PENDING
+
     teacher_service.ensure_no_pending_submission(assignment_id)
 
-    # Rule A6 — học sinh phải thuộc lớp
+    cfg = _active_column_config()
+    active_columns = cfg["active_columns"]
+    for row in rows:
+        _reject_inactive_columns(row, active_columns)
+
     class_student_ids = set(
-        class_enrollment_repository.list_student_ids_by_class(assignment.class_id)
+        class_enrollment_repository.list_enrolled_student_ids_by_class(
+            assignment.class_id
+        )
     )
+
+    valid_rows = []
+    skipped_student_ids = []
     for row in rows:
         sid = int(row["student_id"])
         if sid not in class_student_ids:
-            raise ValidationError(
-                f"Học sinh id={sid} không thuộc lớp đang được giao điểm.",
-                error="STUDENT_NOT_IN_ASSIGNMENT",
-            )
+
+            skipped_student_ids.append(sid)
+            continue
+        valid_rows.append((sid, row))
+
+    if not valid_rows:
+        from studentapp.exceptions import StudentNotInAssignmentError
+
+        raise StudentNotInAssignmentError(
+            "Không có học sinh nào trong yêu cầu thuộc lớp đang được giao điểm. "
+            "Vui lòng tải lại bảng điểm.",
+            student_id=skipped_student_ids[0] if skipped_student_ids else None,
+            assignment_id=assignment_id,
+        )
 
     passing = _passing_score()
-    cfg = _active_column_config()
-    active_columns = cfg["active_columns"]
     updated = []
 
-    for row in rows:
-        # Rule A2/A3/A4 — chặn ghi vào cột vượt quá số cột quy định
-        _reject_inactive_columns(row, active_columns)
-        sid = int(row["student_id"])
+    for sid, row in valid_rows:
         score = score_repository.get_by_assignment_and_student(assignment_id, sid)
-        if score is None:
-            score = _create_score_row(assignment_id, sid)
+        score_map = (
+            score.score_map()
+            if score is not None
+            else {col: None for col in ALL_SCORE_COLUMNS}
+        )
 
-        score_map = score.score_map()
-        changed = False
-
+        pending_values = {}
         for col in active_columns:
             if col not in row:
                 continue
             value = _parse_score(row[col])
             if value is None:
-                # Partial update — giữ nguyên giá trị cũ (chống mất dữ liệu)
+
                 continue
             _validate_score_value(value)
+            pending_values[col] = value
+
+        if not pending_values:
+
+            continue
+
+        if score is None:
+            score = _create_score_row(assignment_id, sid)
+
+        for col, value in pending_values.items():
             score_map[col] = value
             setattr(score, col, value)
-            changed = True
 
         average, passed = score_calculator.calculate(score_map, passing)
         score.average_score = average
@@ -257,7 +244,7 @@ def save_batch_scores(payload, teacher_id):
                 "student_id": sid,
                 "average_score": float(average) if average is not None else None,
                 "is_passed": passed,
-                "changed": changed,
+                "changed": True,
             }
         )
 
@@ -274,12 +261,14 @@ def save_batch_scores(payload, teacher_id):
                 "Bấm 'Gửi duyệt' để Giáo vụ duyệt & chốt thành điểm chính thức."
             ),
             "scores": updated,
+
+            "skipped_student_ids": skipped_student_ids,
+            "skipped_count": len(skipped_student_ids),
         },
     }
 
-
 def _create_score_row(assignment_id, student_id):
-    """Tạo dòng điểm mới (chưa có ô nào có giá trị)."""
+
     from studentapp.models.score import Score
 
     score = Score(assignment_id=assignment_id, student_id=student_id, is_draft=True)
@@ -287,19 +276,8 @@ def _create_score_row(assignment_id, student_id):
     db.session.flush()
     return score
 
-
-# --------------------------------------------------------------------------- #
-# SD14 — Sửa 1 ô điểm
-# --------------------------------------------------------------------------- #
-
-
 def update_score_cell(score_id, payload, teacher_id):
-    """SD14 — Sửa một ô điểm của một học sinh (bảng điểm đang MỞ).
 
-    Hỗ trợ ``clear: true`` để **xoá có chủ đích** một ô đã chấm (set NULL)
-    — thao tác này ghi audit log, khác với việc gửi ``null`` trong batch
-    (partial update — giữ nguyên).
-    """
     score = score_repository.get_by_id(score_id)
     if score is None:
         raise NotFoundError("Không tìm thấy dòng điểm cần sửa.")
@@ -316,7 +294,7 @@ def update_score_cell(score_id, payload, teacher_id):
             f"Cột điểm không hợp lệ: {column!r}. "
             f"Chỉ chấp nhận: {', '.join(ALL_SCORE_COLUMNS)}."
         )
-    # Rule A2/A3/A4 — chặn sửa cột vượt quá số cột quy định
+
     if column not in _active_column_config()["active_columns"]:
         from studentapp.exceptions import InvalidColumnCountError
 
@@ -370,48 +348,73 @@ def update_score_cell(score_id, payload, teacher_id):
         "is_draft": True,
     }
 
-
 def _write_audit(user_id, action, details):
-    """Ghi vết hoạt động vào audit_logs."""
-    from studentapp.models.audit_log import AuditLog
 
-    db.session.add(AuditLog(user_id=user_id, action=action, details=details))
+    from studentapp.utils.audit import write_audit
 
+    write_audit(user_id, action, details)
 
-# --------------------------------------------------------------------------- #
-# Đọc điểm
-# --------------------------------------------------------------------------- #
+def get_assignment_scores(assignment_id, teacher_id, is_academic=False):
 
-
-def get_assignment_scores(assignment_id, teacher_id):
-    """Xem bảng điểm của lớp môn học (cả nháp & chính thức, kèm cờ is_draft)."""
-    assignment = teacher_service.ensure_teacher_owns_assignment(assignment_id, teacher_id)
+    if is_academic:
+        assignment = teaching_assignment_repository.get_by_id(assignment_id)
+        if assignment is None:
+            raise NotFoundError("Không tìm thấy lớp môn học (phân công giảng dạy).")
+    else:
+        assignment = teacher_service.ensure_teacher_owns_assignment(
+            assignment_id, teacher_id
+        )
 
     rows = score_repository.list_by_assignment(assignment_id, draft_only=None)
-    student_ids = [r.student_id for r in rows]
-    from studentapp.repositories import student_repository
+    from studentapp.repositories import student_repository, class_enrollment_repository
 
-    students = {s.id: s for s in student_repository.list_by_ids(student_ids)}
+    roster_ids = class_enrollment_repository.list_enrolled_student_ids_by_class(
+        assignment.class_id
+    )
+    students = {s.id: s for s in student_repository.list_by_ids(roster_ids)}
+    score_by_student = {int(r.student_id): r for r in rows}
 
     score_list = []
-    for row in rows:
-        student = students.get(row.student_id)
+    for sid in roster_ids:
+        row = score_by_student.get(sid)
+        student = students.get(sid)
+        score_map = (
+            row.score_map() if row is not None else {col: None for col in ALL_SCORE_COLUMNS}
+        )
         item = {
-            "student_id": row.student_id,
+            "student_id": sid,
             "student_code": student.student_code if student else None,
             "full_name": student.full_name if student else None,
-            "average_score": float(row.average_score) if row.average_score is not None else None,
-            "is_passed": None if row.is_passed is None else bool(row.is_passed),
-            "is_draft": bool(row.is_draft),
-            **row.score_map(),
+            "average_score": (
+                float(row.average_score)
+                if row is not None and row.average_score is not None
+                else None
+            ),
+            "is_passed": (
+                None if row is None or row.is_passed is None else bool(row.is_passed)
+            ),
+            "is_draft": bool(row.is_draft) if row is not None else True,
+            **{
+                col: (float(val) if val is not None else None)
+                for col, val in score_map.items()
+            },
         }
         score_list.append(item)
 
     pending = teaching_assignment_repository.get_pending_submission(assignment_id)
     return {
         "assignment_id": assignment.id,
+        "class_id": int(assignment.class_id),
         "class_name": assignment.class_room.class_name if assignment.class_room else None,
+        "subject_id": int(assignment.subject_id),
         "subject_name": assignment.subject.subject_name if assignment.subject else None,
+        "semester_id": int(assignment.semester_id) if assignment.semester_id else None,
+        "semester_name": assignment.semester.semester_name if assignment.semester else None,
+        "academic_year_id": (
+            int(assignment.semester.academic_year_id)
+            if assignment.semester and assignment.semester.academic_year_id
+            else None
+        ),
         "academic_year": (
             assignment.semester.academic_year.year_name
             if assignment.semester and assignment.semester.academic_year
@@ -424,12 +427,9 @@ def get_assignment_scores(assignment_id, teacher_id):
         "score_list": score_list,
     }
 
+def get_student_scores(student_id, teacher_id, include_draft=False, is_academic=False):
 
-def get_student_scores(student_id, teacher_id, include_draft=False):
-    """Xem toàn bộ điểm của một học sinh.
-
-    Mặc định chỉ trả điểm **chính thức** đã duyệt (chống lộ điểm tạm).
-    """
+    from studentapp.exceptions import PermissionDeniedError
     from studentapp.repositories import student_repository
 
     student = student_repository.get_by_id(student_id)
@@ -439,9 +439,30 @@ def get_student_scores(student_id, teacher_id, include_draft=False):
     my_assignments = teacher_service.list_my_assignments(teacher_id)
     my_ids = [a.id for a in my_assignments]
 
+    if not is_academic:
+
+        if not my_assignments:
+            raise PermissionDeniedError(
+                "Bạn chưa được phân công lớp môn học nào nên không được xem "
+                "điểm của học sinh."
+            )
+
+        my_class_ids = {int(a.class_id) for a in my_assignments}
+        student_class_ids = {
+            int(cid)
+            for cid in class_enrollment_repository.list_all_class_ids_by_student(student_id)
+            if int(cid) in my_class_ids
+        }
+        if not student_class_ids:
+            raise PermissionDeniedError(
+                "Học sinh này không thuộc lớp bạn phụ trách nên bạn không được "
+                "xem điểm của học sinh!"
+            )
+
     rows = score_repository.list_by_student(
         student_id,
-        assignment_ids=my_ids or None,
+
+        assignment_ids=my_ids if not is_academic else None,
         draft_only=None if include_draft else False,
     )
 
@@ -452,13 +473,293 @@ def get_student_scores(student_id, teacher_id, include_draft=False):
         "scores": [r.to_dict() for r in rows],
     }
 
+def _resolve_yearly_scope(class_id, subject_id, academic_year_id):
+
+    from studentapp.models.academic_year import AcademicYear
+    from studentapp.models.class_room import Class
+    from studentapp.models.subject import Subject
+
+    try:
+        cid = int(class_id)
+    except (TypeError, ValueError):
+        raise ValidationError("class_id không hợp lệ.")
+    try:
+        sid = int(subject_id)
+    except (TypeError, ValueError):
+        raise ValidationError("subject_id không hợp lệ.")
+    try:
+        yid = int(academic_year_id)
+    except (TypeError, ValueError):
+        raise ValidationError("academic_year_id không hợp lệ.")
+
+    if db.session.get(Class, cid) is None:
+        raise NotFoundError("Không tìm thấy lớp học.")
+    if db.session.get(Subject, sid) is None:
+        raise NotFoundError("Không tìm thấy môn học.")
+    if db.session.get(AcademicYear, yid) is None:
+        raise NotFoundError("Không tìm thấy năm học.")
+
+    return cid, sid, yid
+
+def _yearly_average_rows(class_id, subject_id, academic_year_id):
+
+    from studentapp.models.semester import Semester
+    from studentapp.repositories import student_repository
+
+    semesters = (
+        Semester.query.filter_by(academic_year_id=int(academic_year_id))
+        .order_by(Semester.factor.asc(), Semester.id.asc())
+        .all()
+    )
+
+    student_ids = class_enrollment_repository.list_student_ids_by_class(
+        class_id, academic_year_id=int(academic_year_id)
+    )
+    students = {int(s.id): s for s in student_repository.list_by_ids(student_ids)}
+
+    rows = score_repository.list_by_class_subject_year(
+        class_id, subject_id, academic_year_id, draft_only=False
+    )
+
+    by_student = {}
+    for row in rows:
+        assignment = row.assignment
+        if assignment is None or assignment.semester is None:
+            continue
+        sem_name = assignment.semester.semester_name
+        factor = int(assignment.semester.factor or 1)
+        avg = row.average_score
+        by_student.setdefault(int(row.student_id), {})[sem_name] = {
+            "factor": factor,
+            "avg": float(avg) if avg is not None else None,
+        }
+
+    sem_names = [s.semester_name for s in semesters]
+    first_sem = sem_names[0] if sem_names else None
+    second_sem = sem_names[1] if len(sem_names) > 1 else None
+
+    records = []
+    for stt, sid in enumerate(student_ids, start=1):
+        sid = int(sid)
+        student = students.get(sid)
+        per_sem = by_student.get(sid, {})
+
+        avg_hk1 = (per_sem.get(first_sem) or {}).get("avg") if first_sem else None
+        avg_hk2 = (per_sem.get(second_sem) or {}).get("avg") if second_sem else None
+
+        weighted_sum = 0.0
+        weight_total = 0.0
+        for item in per_sem.values():
+            avg = item["avg"]
+            if avg is None:
+                continue
+            weighted_sum += avg * item["factor"]
+            weight_total += item["factor"]
+        avg_yearly = round(weighted_sum / weight_total, 2) if weight_total else None
+
+        records.append({
+            "stt": stt,
+            "student_id": sid,
+            "student_code": student.student_code if student else None,
+            "full_name": student.full_name if student else None,
+            "class_name": None,
+            "avg_hk1": avg_hk1,
+            "avg_hk2": avg_hk2,
+            "avg_yearly": avg_yearly,
+        })
+
+    return records, semesters
+
+def get_yearly_class_scores(class_id, subject_id, academic_year_id, teacher_id=None,
+                            is_academic=False):
+
+    from studentapp.models.academic_year import AcademicYear
+    from studentapp.models.class_room import Class
+    from studentapp.models.subject import Subject
+
+    cid, sid, yid = _resolve_yearly_scope(class_id, subject_id, academic_year_id)
+
+    if not is_academic:
+        teacher_service.ensure_teacher_owns_class_subject(teacher_id, cid, sid)
+
+    cls = db.session.get(Class, cid)
+    subject = db.session.get(Subject, sid)
+    year = db.session.get(AcademicYear, yid)
+
+    records, semesters = _yearly_average_rows(cid, sid, yid)
+    for r in records:
+        r["class_name"] = cls.class_name if cls else None
+
+    return {
+        "class_id": cid,
+        "class_name": cls.class_name if cls else None,
+        "subject_id": sid,
+        "subject_name": subject.subject_name if subject else None,
+        "academic_year_id": yid,
+        "academic_year": year.year_name if year else None,
+        "semesters": [
+            {"id": s.id, "semester_name": s.semester_name, "factor": int(s.factor)}
+            for s in semesters
+        ],
+        "records": records,
+    }
+
+def export_yearly_class_scores(assignment_id, fmt="excel", teacher_id=None,
+                               is_academic=False):
+
+    from studentapp.models.academic_year import AcademicYear
+    from studentapp.models.class_room import Class
+    from studentapp.models.subject import Subject
+    from studentapp.models.teaching_assignment import TeachingAssignment
+
+    try:
+        aid = int(assignment_id)
+    except (TypeError, ValueError):
+        raise ValidationError("assignment_id không hợp lệ.")
+
+    assignment = TeachingAssignment.query.filter_by(id=aid).first()
+    if assignment is None:
+        raise NotFoundError("Không tìm thấy lớp môn học (phân công giảng dạy).")
+
+    if not is_academic:
+        teacher_service.ensure_teacher_owns_assignment(aid, teacher_id)
+
+    semester = assignment.semester
+    if semester is None or semester.academic_year is None:
+        raise NotFoundError("Lớp môn học chưa gắn với năm học.")
+
+    yid = int(semester.academic_year_id)
+    cid = int(assignment.class_id)
+    sid = int(assignment.subject_id)
+
+    data = get_yearly_class_scores(
+        cid, sid, yid, teacher_id=teacher_id, is_academic=is_academic
+    )
+
+    fmt = (fmt or "excel").strip().lower()
+    if fmt not in ("excel", "pdf"):
+        raise ValidationError("format không hợp lệ. Chỉ hỗ trợ 'excel' hoặc 'pdf'.")
+
+    cls = db.session.get(Class, cid)
+    subject = db.session.get(Subject, sid)
+    year = db.session.get(AcademicYear, yid)
+
+    safe = lambda s: "".join(
+        ch if ch.isalnum() else "_" for ch in str(s or "")
+    ).strip("_") or "X"
+    base_name = (
+        f"BangDiemTrungBinhLop_{safe(cls.class_name if cls else '')}"
+        f"_{safe(subject.subject_name if subject else '')}"
+        f"_{safe(year.year_name if year else '')}"
+    )
+
+    if fmt == "excel":
+        payload = _build_yearly_excel(data)
+        return payload, f"{base_name}.xlsx", (
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        ), data
+
+    payload = _build_yearly_pdf(data)
+    return payload, f"{base_name}.pdf", "application/pdf", data
+
+def _build_yearly_excel(data):
+
+    import io
+
+    from openpyxl import Workbook
+    from openpyxl.styles import Alignment, Font
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Bang diem trung binh lop"
+
+    ws.append(["BẢNG ĐIỂM TRUNG BÌNH LỚP"])
+    ws.append([
+        f"Năm học: {data['academic_year']} — Lớp: {data['class_name']} — "
+        f"Môn: {data['subject_name']}",
+    ])
+    ws.append(["Năm học", "STT", "Họ tên", "Lớp", "Điểm TB HK1", "Điểm TB HK2"])
+    for r in data["records"]:
+        ws.append([
+            data["academic_year"],
+            r["stt"],
+            r["full_name"],
+            r["class_name"],
+            r["avg_hk1"],
+            r["avg_hk2"],
+        ])
+
+    for row in ws.iter_rows():
+        for cell in row:
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+    ws["A1"].font = Font(bold=True, size=13)
+    ws["A3"].font = Font(bold=True)
+    for col, width in zip("ABCDEF", (12, 6, 28, 12, 14, 14)):
+        ws.column_dimensions[col].width = width
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+def _build_yearly_pdf(data):
+
+    import io
+
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import mm
+    from reportlab.pdfgen import canvas
+
+    buf = io.BytesIO()
+    c = canvas.Canvas(buf, pagesize=A4)
+    w, h = A4
+
+    y = h - 18 * mm
+    c.setFont("Helvetica-Bold", 14)
+    c.drawCentredString(w / 2, y, "BANG DIEM TRUNG BINH LOP")
+    y -= 8 * mm
+    c.setFont("Helvetica", 10)
+    c.drawString(
+        15 * mm, y,
+        f"Nam hoc: {data['academic_year']} - Lop: {data['class_name']} - "
+        f"Mon: {data['subject_name']}",
+    )
+    y -= 10 * mm
+
+    headers = ["Nam hoc", "STT", "Ho ten", "Lop", "Diem TB HK1", "Diem TB HK2"]
+    xs = [15 * mm, 50 * mm, 62 * mm, 125 * mm, 145 * mm, 175 * mm]
+    c.setFont("Helvetica-Bold", 9)
+    for x, head in zip(xs, headers):
+        c.drawString(x, y, head)
+    y -= 2 * mm
+    c.line(15 * mm, y, w - 15 * mm, y)
+    y -= 6 * mm
+
+    c.setFont("Helvetica", 9)
+    for r in data["records"]:
+        if y < 18 * mm:
+            c.showPage()
+            y = h - 18 * mm
+            c.setFont("Helvetica", 9)
+        c.drawString(xs[0], y, str(data["academic_year"]))
+        c.drawString(xs[1], y, str(r["stt"]))
+        c.drawString(xs[2], y, str(r["full_name"] or ""))
+        c.drawString(xs[3], y, str(r["class_name"] or ""))
+        c.drawString(xs[4], y, _fmt_avg(r["avg_hk1"]))
+        c.drawString(xs[5], y, _fmt_avg(r["avg_hk2"]))
+        y -= 6 * mm
+
+    c.showPage()
+    c.save()
+    return buf.getvalue()
+
+def _fmt_avg(value):
+
+    if value is None:
+        return ""
+    return f"{float(value):.2f}"
 
 def search_my_students(teacher_id, keyword=None, class_id=None, limit=20):
-    """Tìm kiếm học sinh trong các lớp GV phụ trách (theo tên / mã số HS).
 
-    :param keyword: chuỗi tìm theo ``full_name`` hoặc ``student_code`` (LIKE).
-    :param class_id: lọc thêm theo 1 lớp (phải là lớp GV đang dạy).
-    """
     from studentapp.exceptions import PermissionDeniedError
     from studentapp.repositories import class_enrollment_repository, student_repository
 
@@ -506,14 +807,8 @@ def search_my_students(teacher_id, keyword=None, class_id=None, limit=20):
         result.append(item)
     return result
 
-
-# --------------------------------------------------------------------------- #
-# SD23 — Gửi bảng điểm lên duyệt & hủy đơn
-# --------------------------------------------------------------------------- #
-
-
 def create_submission(payload, teacher_id):
-    """SD23 — Gửi bảng điểm tạm lên Giáo vụ để duyệt & chốt."""
+
     from studentapp.exceptions import (
         DuplicatePendingSubmissionError,
         IncompleteScoresError,
@@ -528,7 +823,6 @@ def create_submission(payload, teacher_id):
     assignment = teacher_service.ensure_teacher_owns_assignment(assignment_id, teacher_id)
     teacher_service.ensure_assignment_open(assignment)
 
-    # Rule B3 — không gửi trùng khi đã có đơn PENDING
     existing = teaching_assignment_repository.get_pending_submission(assignment_id)
     if existing is not None:
         raise DuplicatePendingSubmissionError(
@@ -537,9 +831,16 @@ def create_submission(payload, teacher_id):
             pending_submission_id=existing.id,
         )
 
-    rows = score_repository.list_by_assignment(assignment_id, draft_only=True)
+    roster_ids = list(
+        class_enrollment_repository.list_enrolled_student_ids_by_class(
+            assignment.class_id
+        )
+    )
+    roster_set = set(roster_ids)
 
-    # Rule B2 — phải có ít nhất 1 dòng điểm
+    all_rows = score_repository.list_by_assignment(assignment_id, draft_only=None)
+    rows = [r for r in all_rows if int(r.student_id) in roster_set]
+
     if not rows:
         from studentapp.exceptions import ValidationError as VE2
 
@@ -548,12 +849,26 @@ def create_submission(payload, teacher_id):
             error="NO_SCORES_TO_SUBMIT",
         )
 
-    # Rule B1 — không ô nào được để trống (chỉ tính cột ĐANG DÙNG theo quy định)
     cfg = _active_column_config()
     active_columns = cfg["active_columns"]
     incomplete = []
     total_filled = 0
-    for row in rows:
+    score_by_student = {int(r.student_id): r for r in rows}
+
+    for sid in roster_ids:
+        row = score_by_student.get(sid)
+        if row is None:
+
+            from studentapp.repositories import student_repository
+
+            student = student_repository.get_by_id(sid)
+            incomplete.append({
+                "student_id": sid,
+                "student_name": student.full_name if student else None,
+                "missing_columns": list(active_columns),
+            })
+            continue
+
         missing = score_repository.count_missing_cells(row, active_columns)
         total_filled += score_repository.count_filled_cells(row, active_columns)
         if missing:
@@ -576,14 +891,13 @@ def create_submission(payload, teacher_id):
         assignment_id=assignment_id,
         teacher_id=teacher_id,
         status=SubmissionStatusEnum.PENDING,
-        total_students=len(rows),
+        total_students=len(roster_ids),
         total_scores=total_filled,
         note=(payload.get("note") or "").strip() or None,
     )
     db.session.add(submission)
     db.session.flush()
 
-    # Đóng dấu submitted_at trên các dòng điểm
     now = datetime.utcnow()
     for row in rows:
         row.submitted_at = now
@@ -593,13 +907,8 @@ def create_submission(payload, teacher_id):
 
     return submission.to_dict()
 
-
 def cancel_submission(submission_id, payload, teacher_id):
-    """SD23 — Hủy đơn gửi duyệt để sửa lại bảng điểm tạm.
 
-    Hiệu lực: ``status = CANCELLED``, ghi ``cancelled_at`` + ``cancel_note``;
-    **giữ nguyên** ``scores.is_draft = TRUE`` và ``teaching_assignments.is_locked = FALSE``.
-    """
     from studentapp.exceptions import InvalidSubmissionStatusError
     from studentapp.models.score_submission import ScoreSubmission
 
@@ -621,6 +930,7 @@ def cancel_submission(submission_id, payload, teacher_id):
 
     submission.status = SubmissionStatusEnum.CANCELLED
     submission.cancelled_at = datetime.utcnow()
+
     submission.cancel_note = (payload.get("cancel_note") or "").strip() or None
     db.session.add(submission)
     db.session.commit()
@@ -632,26 +942,20 @@ def cancel_submission(submission_id, payload, teacher_id):
 
     return submission.to_dict()
 
-
 def list_my_submissions(teacher_id):
-    """Danh sách bảng điểm GV đã gửi duyệt."""
+
     from studentapp.models.score_submission import ScoreSubmission
+    from studentapp.services import submission_service
 
     rows = (
         ScoreSubmission.query.filter_by(teacher_id=int(teacher_id))
         .order_by(ScoreSubmission.id.desc())
         .all()
     )
-    return [r.to_dict() for r in rows]
-
-
-# --------------------------------------------------------------------------- #
-# SD25 — Gửi yêu cầu chỉnh điểm (đơn phúc khảo) khi bảng điểm đã CHỐT
-# --------------------------------------------------------------------------- #
-
+    return [submission_service.enrich_submission(r) for r in rows]
 
 def _validate_change_payload(payload):
-    """Kiểm tra cấu trúc đơn phúc khảo: assignment_id + reason + changes[]."""
+
     assignment_id = payload.get("assignment_id")
     if not assignment_id:
         raise ValidationError("Thiếu assignment_id trong request.")
@@ -687,34 +991,104 @@ def _validate_change_payload(payload):
             )
         seen.add(key)
 
-    return int(assignment_id), reason, changes
+    attachment = _read_attachment(payload)
 
+    return int(assignment_id), reason, changes, attachment
 
-def create_change_request(payload, teacher_id):
-    """SD25 — Gửi đơn yêu cầu chỉnh điểm khi bảng điểm đã CHỐT.
+def _read_attachment(payload):
 
-    * Chỉ tạo được khi ``teaching_assignments.is_locked = TRUE``
-      (bảng đang mở thì GV sửa trực tiếp, không cần đơn).
-    * Mỗi ô đề nghị sửa ghi rõ **giá trị cũ** (``old_value``, lấy từ DB)
-      và **giá trị mới** (``new_value``) — Giáo vụ duyệt/từ chối từng ô.
-    * ``old_value`` luôn có giá trị vì bảng đã chốt ⇒ không còn ô NULL.
-    """
-    from studentapp.exceptions import ScoreValueConflictError, ScoreTableNotLockedError
-    from studentapp.models.score_change_detail import ScoreChangeDetail
+    path = (payload.get("attachment_path") or "").strip()
+    if not path:
+        return None
+
+    if path.startswith("/") or path.startswith("\\") or ".." in path.replace("\\", "/").split("/"):
+        raise ValidationError(
+            "Đường dẫn file đính kèm không hợp lệ.",
+            error="INVALID_ATTACHMENT_PATH",
+        )
+
+    kind = (payload.get("attachment_type") or "").strip().upper() or None
+    if kind not in ("IMAGE", "PDF"):
+        raise ValidationError(
+            "Loại file đính kèm không hợp lệ (chỉ nhận IMAGE hoặc PDF).",
+            error="INVALID_ATTACHMENT_TYPE",
+        )
+
+    name = (payload.get("attachment_name") or "").strip() or path.rsplit("/", 1)[-1]
+    return {"path": path, "type": kind, "name": name[:200]}
+
+def _assert_no_pending_duplicate(assignment_id, changes):
+
+    from studentapp.exceptions import DuplicatePendingAppealError
+    from studentapp.models.score_change_detail import (
+        ChangeDetailStatusEnum,
+        ScoreChangeDetail,
+    )
     from studentapp.models.score_change_request import (
         ChangeRequestStatusEnum,
         ScoreChangeRequest,
     )
 
-    assignment_id, reason, changes = _validate_change_payload(payload)
+    if not changes:
+        return
+
+    pending_request_ids = [
+        r.id
+        for r in ScoreChangeRequest.query.filter_by(
+            assignment_id=int(assignment_id),
+            status=ChangeRequestStatusEnum.PENDING,
+        ).all()
+    ]
+    if not pending_request_ids:
+        return
+
+    pending_cells = set()
+    for detail in ScoreChangeDetail.query.filter(
+        ScoreChangeDetail.request_id.in_(pending_request_ids),
+        ScoreChangeDetail.status == ChangeDetailStatusEnum.PENDING,
+    ).all():
+        pending_cells.add((int(detail.student_id), detail.score_column))
+
+    if not pending_cells:
+        return
+
+    duplicates = []
+    for change in changes:
+        key = (int(change["student_id"]), change["score_column"].strip())
+        if key in pending_cells:
+            duplicates.append(
+                {"student_id": key[0], "score_column": key[1]}
+            )
+
+    if duplicates:
+        raise DuplicatePendingAppealError(cells=duplicates)
+
+def create_change_request(payload, teacher_id):
+
+    from studentapp.exceptions import (
+        DuplicatePendingAppealError,
+        ScoreTableNotLockedError,
+        ScoreValueConflictError,
+    )
+    from studentapp.models.score_change_detail import (
+        ChangeDetailStatusEnum,
+        ScoreChangeDetail,
+    )
+    from studentapp.models.score_change_request import (
+        ChangeRequestStatusEnum,
+        ScoreChangeRequest,
+    )
+
+    assignment_id, reason, changes, attachment = _validate_change_payload(payload)
 
     assignment = teacher_service.ensure_teacher_owns_assignment(assignment_id, teacher_id)
 
-    # Bảng điểm đang MỞ → GV sửa trực tiếp, không cần gửi đơn.
     if not assignment.is_locked:
         raise ScoreTableNotLockedError(
             "Bảng điểm đang mở. Bạn hãy sửa điểm trực tiếp thay vì gửi đơn phúc khảo!"
         )
+
+    _assert_no_pending_duplicate(assignment_id, changes)
 
     request = ScoreChangeRequest(
         assignment_id=assignment_id,
@@ -724,6 +1098,10 @@ def create_change_request(payload, teacher_id):
         is_batch=len(changes) > 1,
         total_changes=len(changes),
     )
+    if attachment:
+        request.attachment_path = attachment["path"]
+        request.attachment_type = attachment["type"]
+        request.attachment_name = attachment["name"]
     db.session.add(request)
     db.session.flush()
 
@@ -740,7 +1118,7 @@ def create_change_request(payload, teacher_id):
 
         old_value = getattr(score, col)
         if old_value is None:
-            # Bảng đã chốt mà ô vẫn NULL ⇒ dữ liệu bất nhất, chặn lại.
+
             raise ScoreValueConflictError(
                 f"Ô điểm {col} của học sinh id={sid} đang trống. "
                 "Vui lòng liên hệ Giáo vụ để kiểm tra lại bảng điểm.",
@@ -783,14 +1161,14 @@ def create_change_request(payload, teacher_id):
 
     return request.to_dict()
 
-
 def list_my_change_requests(teacher_id):
-    """Danh sách đơn phúc khảo GV đã gửi."""
+
     from studentapp.models.score_change_request import ScoreChangeRequest
+    from studentapp.services import change_review_service
 
     rows = (
         ScoreChangeRequest.query.filter_by(teacher_id=int(teacher_id))
         .order_by(ScoreChangeRequest.id.desc())
         .all()
     )
-    return [r.to_dict() for r in rows]
+    return [change_review_service.enrich_request(r) for r in rows]

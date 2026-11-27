@@ -1,12 +1,4 @@
-"""ENTITY teaching_assignments — Phân công giảng dạy (lớp + môn + GV + kỳ).
-
-Cờ `is_locked` mang ý nghĩa **"đã chốt bảng điểm"**:
-* ``False`` → bảng điểm đang MỞ, Giáo viên nhập/sửa điểm tạm được.
-* ``True``  → bảng điểm đã CHỐT, Giáo viên không sửa trực tiếp được
-  (phải gửi đơn phúc khảo ``POST /score-requests``).
-"""
 from studentapp.extensions import db
-
 
 class TeachingAssignment(db.Model):
     __tablename__ = "teaching_assignments"
@@ -20,6 +12,13 @@ class TeachingAssignment(db.Model):
     locked_at = db.Column(db.TIMESTAMP, nullable=True)
     created_at = db.Column(
         db.TIMESTAMP, nullable=False, server_default=db.func.current_timestamp()
+    )
+
+    __table_args__ = (
+        db.UniqueConstraint(
+            "class_id", "subject_id", "semester_id",
+            name="uq_teacher_class_subject_sem",
+        ),
     )
 
     teacher = db.relationship("User", backref=db.backref("teaching_assignments", lazy=True))

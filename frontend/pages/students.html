@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Danh sách học sinh — Hệ thống Quản lý Học sinh</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/tokens.css">
+<link rel="stylesheet" href="/assets/css/base.css">
+<link rel="stylesheet" href="/assets/css/layout.css">
+<link rel="stylesheet" href="/assets/css/components.css">
+<link rel="stylesheet" href="/assets/css/pages.css">
+</head>
+<body>
+
+<div class="app-shell" id="app-shell"></div>
+
+<div class="toast-container" role="status" aria-live="polite"></div>
+
+<!-- ==================== M5 — Modal tiếp nhận học sinh ==================== -->
+<dialog class="modal" id="modal-admit">
+  <form method="dialog" class="modal__dialog modal__dialog--720" id="form-admit">
+    <header class="modal__header">
+      <div>
+        <h2 class="modal__title">Tiếp nhận học sinh</h2>
+        <p class="modal__subtitle">Nhập hồ sơ học sinh mới. Các trường có dấu * là bắt buộc.</p>
+      </div>
+      <button type="button" class="btn btn--icon" data-close aria-label="Đóng">✕</button>
+    </header>
+
+    <div class="modal__body">
+      <div id="admit-alert" class="hidden" style="margin-bottom:16px"></div>
+
+      <div class="field-group">
+        <div class="field-group__title">Thông tin cá nhân</div>
+        <div class="form-grid">
+          <div class="field">
+            <label class="field__label" for="admit-name">Họ và tên <span class="field__required">*</span></label>
+            <input class="field__input" id="admit-name" name="full_name" placeholder="Nguyễn Văn An" required>
+          </div>
+          <div class="field">
+            <label class="field__label" for="admit-dob">Ngày sinh <span class="field__required">*</span></label>
+            <input class="field__input" id="admit-dob" name="date_of_birth" type="date" required>
+            <p class="field__hint" id="hint-age"></p>
+          </div>
+          <div class="field">
+            <label class="field__label" for="admit-gender">Giới tính <span class="field__required">*</span></label>
+            <div class="field__select-wrap">
+              <select class="field__select" id="admit-gender" name="gender" required>
+                <option value="">-- Chọn --</option>
+                <option value="NAM">Nam</option>
+                <option value="NU">Nữ</option>
+                <option value="KHAC">Khác</option>
+              </select>
+              <span class="field__chevron">▾</span>
+            </div>
+          </div>
+          <div class="field">
+            <label class="field__label" for="admit-phone">Số điện thoại</label>
+            <input class="field__input" id="admit-phone" name="phone" inputmode="tel"
+                   placeholder="0912345678">
+          </div>
+          <div class="field">
+            <label class="field__label" for="admit-email">Email</label>
+            <input class="field__input" id="admit-email" name="email" type="email"
+                   placeholder="hocsinh@example.com">
+          </div>
+          <div class="field">
+            <label class="field__label" for="admit-address">Địa chỉ</label>
+            <input class="field__input" id="admit-address" name="address"
+                   placeholder="Số nhà, đường, phường/xã, tỉnh/thành">
+          </div>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <div class="field-group__title">Thông tin học vụ</div>
+        <div class="form-grid">
+          <div class="field">
+            <label class="field__label" for="admit-code">Mã học sinh <span class="field__required">*</span></label>
+            <input class="field__input t-mono" id="admit-code" name="student_code"
+                   placeholder="HS2024001" required>
+            <p class="field__hint">Mã duy nhất, không được trùng với hồ sơ đã có.</p>
+          </div>
+          <div class="field">
+            <label class="field__label" for="admit-grade">Khối lớp <span class="field__required">*</span></label>
+            <div class="field__select-wrap">
+              <select class="field__select" id="admit-grade" name="grade_id" required>
+                <option value="">-- Chọn khối --</option>
+              </select>
+              <span class="field__chevron">▾</span>
+            </div>
+          </div>
+          <div class="field">
+            <label class="field__label" for="admit-class">Lớp</label>
+            <div class="field__select-wrap">
+              <select class="field__select" id="admit-class" name="class_id">
+                <option value="">-- Chưa phân lớp --</option>
+              </select>
+              <span class="field__chevron">▾</span>
+            </div>
+            <p class="field__hint" id="hint-class-size"></p>
+          </div>
+          <div class="field">
+            <label class="field__label" for="admit-status">Trạng thái</label>
+            <div class="field__select-wrap">
+              <select class="field__select" id="admit-status" name="status">
+                <option value="DANG_HOC">Đang học</option>
+                <option value="THOI_HOC">Thôi học</option>
+                <option value="CHUYEN_TRUONG">Chuyển trường</option>
+                <option value="TOT_NGHIEP">Tốt nghiệp</option>
+              </select>
+              <span class="field__chevron">▾</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer class="modal__footer">
+      <span class="modal__footer-note" id="admit-note"></span>
+      <button type="button" class="btn btn--secondary" data-close>Huỷ</button>
+      <button type="submit" class="btn btn--primary" id="btn-admit">Tiếp nhận</button>
+    </footer>
+  </form>
+</dialog>
+
+<!-- ==================== M6 — Modal sửa hồ sơ ==================== -->
+<dialog class="modal" id="modal-edit">
+  <form method="dialog" class="modal__dialog modal__dialog--720" id="form-edit">
+    <header class="modal__header">
+      <div>
+        <h2 class="modal__title" id="edit-title">Cập nhật hồ sơ học sinh</h2>
+        <p class="modal__subtitle" id="edit-subtitle"></p>
+      </div>
+      <button type="button" class="btn btn--icon" data-close aria-label="Đóng">✕</button>
+    </header>
+
+    <div class="modal__body">
+      <div id="edit-alert" class="hidden" style="margin-bottom:16px"></div>
+      <div class="form-grid" id="edit-fields"></div>
+    </div>
+
+    <footer class="modal__footer">
+      <button type="button" class="btn btn--secondary" data-close>Huỷ</button>
+      <button type="submit" class="btn btn--primary" id="btn-edit">Lưu thay đổi</button>
+    </footer>
+  </form>
+</dialog>
+
+<!-- ==================== M10 — Modal import Excel ==================== -->
+<dialog class="modal" id="modal-import">
+  <form method="dialog" class="modal__dialog modal__dialog--720" id="form-import">
+    <header class="modal__header">
+      <div>
+        <h2 class="modal__title">Import danh sách học sinh</h2>
+        <p class="modal__subtitle">Tải file Excel theo mẫu, hệ thống sẽ báo chi tiết các dòng lỗi.</p>
+      </div>
+      <button type="button" class="btn btn--icon" data-close aria-label="Đóng">✕</button>
+    </header>
+
+    <div class="modal__body">
+      <div id="import-alert" class="hidden" style="margin-bottom:16px"></div>
+
+      <div class="dropzone" id="dropzone" tabindex="0" role="button"
+           aria-label="Chọn file Excel để import">
+        <span class="dropzone__icon" id="dropzone-icon"></span>
+        <div class="t-body-medium" id="dropzone-title">Kéo thả file .xlsx vào đây</div>
+        <div class="t-caption" id="dropzone-sub">hoặc bấm để chọn file (tối đa 10MB)</div>
+        <input type="file" id="file-input" accept=".xlsx,.xls" hidden>
+      </div>
+
+      <div id="import-result" class="hidden" style="margin-top:20px">
+        <div class="subtabs">
+          <button type="button" class="subtabs__item is-active" data-tab="success">
+            Thành công <span class="badge-count" id="count-success"
+              style="background:var(--success-bg);color:var(--success)">0</span>
+          </button>
+          <button type="button" class="subtabs__item" data-tab="errors">
+            Lỗi <span class="badge-count" id="count-errors">0</span>
+          </button>
+        </div>
+        <div class="table-wrap" style="max-height:260px;overflow-y:auto">
+          <table class="table">
+            <thead class="table__head"><tr>
+              <th>Dòng</th><th>Mã HS</th><th>Họ tên</th><th style="width:55%">Lỗi</th>
+            </tr></thead>
+            <tbody id="import-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <footer class="modal__footer">
+      <span class="modal__footer-note" id="import-note"></span>
+      <button type="button" class="btn btn--secondary" data-close>Đóng</button>
+      <button type="button" class="btn btn--primary" id="btn-import" disabled>
+        Bắt đầu import
+      </button>
+    </footer>
+  </form>
+</dialog>
+
+<!-- ==================== Modal đổi trạng thái ==================== -->
+<dialog class="modal" id="modal-status">
+  <form method="dialog" class="modal__dialog" id="form-status">
+    <header class="modal__header">
+      <div>
+        <h2 class="modal__title">Đổi trạng thái học sinh</h2>
+        <p class="modal__subtitle" id="status-subtitle"></p>
+      </div>
+      <button type="button" class="btn btn--icon" data-close aria-label="Đóng">✕</button>
+    </header>
+    <div class="modal__body">
+      <div id="status-alert" class="hidden" style="margin-bottom:16px"></div>
+      <div class="field">
+        <label class="field__label" for="status-select">Trạng thái mới</label>
+        <div class="field__select-wrap">
+          <select class="field__select" id="status-select" name="status">
+            <option value="DANG_HOC">Đang học</option>
+            <option value="THOI_HOC">Thôi học</option>
+            <option value="CHUYEN_TRUONG">Chuyển trường</option>
+            <option value="TOT_NGHIEP">Tốt nghiệp</option>
+          </select>
+          <span class="field__chevron">▾</span>
+        </div>
+        <p class="field__hint">Thay đổi trạng thái sẽ được ghi vào nhật ký hệ thống.</p>
+      </div>
+    </div>
+    <footer class="modal__footer">
+      <button type="button" class="btn btn--secondary" data-close>Huỷ</button>
+      <button type="submit" class="btn btn--primary" id="btn-status">Cập nhật</button>
+    </footer>
+  </form>
+</dialog>
+
+<script type="module" src="/assets/js/pages/students.js"></script>
+</body>
+</html>

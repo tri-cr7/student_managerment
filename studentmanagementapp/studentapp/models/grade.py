@@ -1,9 +1,6 @@
-"""ENTITY grades — Khối lớp (10, 11, 12).
-
-Schema thực tế trong DB: ``grade_level`` (INT, unique) + ``grade_name``.
-"""
 from studentapp.extensions import db
 
+VALID_GRADE_LEVELS = (10, 11, 12)
 
 class Grade(db.Model):
     __tablename__ = "grades"
@@ -13,6 +10,13 @@ class Grade(db.Model):
     grade_name = db.Column(db.String(50), nullable=False)
     created_at = db.Column(
         db.TIMESTAMP, nullable=False, server_default=db.func.current_timestamp()
+    )
+
+    __table_args__ = (
+        db.CheckConstraint(
+            "grade_level IN (10, 11, 12)",
+            name="ck_grades_grade_level",
+        ),
     )
 
     def to_dict(self):

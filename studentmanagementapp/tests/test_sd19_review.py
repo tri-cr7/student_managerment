@@ -1,12 +1,3 @@
-"""Test SD19 — Phê duyệt phúc khảo từng ô (Giáo vụ).
-
-Bao phủ:
-* Service: đơn lẻ duyệt mặc định OK (giữ is_draft=FALSE, không đụng is_locked,
-  tính lại ĐTB); đơn lô thiếu decisions → 422 DECISIONS_REQUIRED; duyệt từng ô
-  (1 APPROVE + 1 REJECT → PARTIALLY_APPROVED); từ chối toàn bộ giữ nguyên điểm;
-  audit + outbox được ghi; đơn đã xử lý không duyệt lại.
-* API: 401/403, ACADEMIC duyệt/từ chối đủ vòng, diff lọc theo trạng thái.
-"""
 import pytest
 
 from studentapp.exceptions import ValidationError
@@ -14,7 +5,6 @@ from studentapp.extensions import db
 from studentapp.models.score import Score
 from studentapp.models.score_change_request import ChangeRequestStatusEnum
 from studentapp.services import change_review_service, score_service
-
 
 def _seed_locked_scores(seed_data):
     rows = []
@@ -33,7 +23,6 @@ def _seed_locked_scores(seed_data):
     seed_data["assignment"].is_locked = True
     db.session.commit()
 
-
 def _make_single(seed_data, column="score_15m_1", new_value=9.0, student_idx=0):
     _seed_locked_scores(seed_data)
     st = seed_data["students"][student_idx]
@@ -46,7 +35,6 @@ def _make_single(seed_data, column="score_15m_1", new_value=9.0, student_idx=0):
         },
         seed_data["teacher"].id,
     )
-
 
 def _make_batch(seed_data):
     _seed_locked_scores(seed_data)
@@ -63,7 +51,6 @@ def _make_batch(seed_data):
         seed_data["teacher"].id,
     )
 
-
 class TestApproveService:
     def test_approve_single_keeps_official(self, app, seed_data):
         req = _make_single(seed_data)
@@ -77,8 +64,8 @@ class TestApproveService:
             student_id=seed_data["students"][0].id,
         ).first()
         assert float(row.score_15m_1) == 9.0
-        assert row.is_draft is False  # giữ nguyên điểm chính thức
-        assert bool(seed_data["assignment"].is_locked) is True  # vẫn chốt
+        assert row.is_draft is False
+        assert bool(seed_data["assignment"].is_locked) is True
         assert row.average_score is not None
 
     def test_batch_requires_decisions(self, app, seed_data):
@@ -106,7 +93,7 @@ class TestApproveService:
         assert out["status"] == ChangeRequestStatusEnum.PARTIALLY_APPROVED
         assert out["approved_count"] == 1
         assert out["rejected_count"] == 1
-        # Ô duyệt được áp, ô từ chối giữ nguyên
+
         r1 = Score.query.filter_by(
             assignment_id=seed_data["assignment"].id,
             student_id=seed_data["students"][0].id).first()
@@ -161,7 +148,6 @@ class TestApproveService:
                 req["request_id"], {}, reviewer_id=seed_data["academic"].id
             )
 
-
 class TestReviewEndpoints:
     def test_requires_authentication(self, app, client, seed_data):
         assert client.get("/api/v1/score-requests").status_code == 401
@@ -182,7 +168,7 @@ class TestReviewEndpoints:
         r = client.get(f"/api/v1/score-requests/{req['request_id']}/diff", headers=h)
         assert r.status_code == 200
         assert len(r.get_json()["data"]["changes"]) == 2
-        # thiếu decisions → 422
+
         r = client.put(f"/api/v1/score-requests/{req['request_id']}/approve",
                        json={}, headers=h)
         assert r.status_code == 422

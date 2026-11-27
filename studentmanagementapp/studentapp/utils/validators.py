@@ -1,4 +1,3 @@
-"""Pure validators."""
 import re
 
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
@@ -6,21 +5,11 @@ PHONE_RE = re.compile(r"^[0-9+\-\s]{7,15}$")
 
 SPECIAL_CHARS = set("!@#$%^&*()-_=+[]{};:,.<>?/|~")
 
-
 def is_email(v):
     return bool(v and EMAIL_RE.match(v.strip()))
 
-
 def is_phone(v):
     return bool(v and PHONE_RE.match(v.strip()))
-
-
-def is_score(v):
-    try:
-        return 0 <= float(v) <= 10
-    except (TypeError, ValueError):
-        return False
-
 
 def is_strong_password(v: str) -> tuple[bool, str]:
     v = v or ""

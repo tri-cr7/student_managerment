@@ -1,12 +1,3 @@
-"""Test SD16 — CRUD phân công giảng dạy (Giáo vụ).
-
-Bao phủ:
-* Service: tạo OK, chặn trùng (class, subject, semester), chặn GV sai role /
-  inactive, chặn lớp/môn/kỳ không tồn tại, sửa OK, sửa trùng → 409,
-  xóa OK khi chưa phát sinh điểm, chặn xóa khi đã có điểm / đã chốt / có đơn.
-* API: 401 khi thiếu token, 403 khi sai role, ACADEMIC CRUD đủ vòng,
-  TEACHER chỉ xem được assignment của mình.
-"""
 import pytest
 
 from studentapp.exceptions import (
@@ -16,7 +7,6 @@ from studentapp.exceptions import (
     ValidationError,
 )
 from studentapp.services import assignment_service
-
 
 def _payload(seed, **over):
     base = {
@@ -28,21 +18,9 @@ def _payload(seed, **over):
     base.update(over)
     return base
 
-
 def _make_hk2(seed):
-    """Tạo thêm HK2 để có bộ ba lớp–môn–kỳ chưa tồn tại cho ca tạo mới."""
-    from studentapp.extensions import db
-    from studentapp.models.semester import Semester
 
-    hk2 = Semester(
-        semester_name="Học kỳ 2",
-        academic_year_id=seed["academic_year"].id,
-        factor=2,
-    )
-    db.session.add(hk2)
-    db.session.commit()
-    return hk2
-
+    return seed["semester_hk2"]
 
 class TestCreateAssignment:
     def test_create_ok(self, app, seed_data):
@@ -90,7 +68,6 @@ class TestCreateAssignment:
                 actor_id=seed_data["academic"].id,
             )
 
-
 class TestUpdateDeleteAssignment:
     def test_update_teacher_ok(self, app, seed_data):
         row = assignment_service.update_assignment(
@@ -101,7 +78,7 @@ class TestUpdateDeleteAssignment:
         assert row["teacher_id"] == seed_data["teacher"].id
 
     def test_update_duplicate_triplet_409(self, app, seed_data):
-        # Đổi other_assignment về đúng triplet của assignment chính → trùng.
+
         with pytest.raises(DuplicateError):
             assignment_service.update_assignment(
                 seed_data["other_assignment"].id,
@@ -151,7 +128,6 @@ class TestUpdateDeleteAssignment:
                 seed_data["other_assignment"].id, actor_id=seed_data["academic"].id
             )
 
-
 class TestAssignmentEndpoints:
     def test_requires_authentication(self, app, client):
         assert client.get("/api/v1/assignments").status_code == 401
@@ -168,28 +144,28 @@ class TestAssignmentEndpoints:
         h = auth_headers("ACADEMIC", seed_data["academic"].id)
         hk2 = _make_hk2(seed_data)
         payload = _payload(seed_data, semester_id=hk2.id)
-        # list
+
         r = client.get("/api/v1/assignments", headers=h)
         assert r.status_code == 200
         assert r.get_json()["data"]["total"] >= 2
-        # create
+
         r = client.post("/api/v1/assignments", json=payload, headers=h)
         assert r.status_code == 201, r.get_json()
         new_id = r.get_json()["data"]["id"]
-        # detail
+
         r = client.get(f"/api/v1/assignments/{new_id}", headers=h)
         assert r.status_code == 200
-        # duplicate → 409
+
         r = client.post("/api/v1/assignments", json=_payload(seed_data), headers=h)
         assert r.status_code == 409
-        # update
+
         r = client.put(
             f"/api/v1/assignments/{new_id}",
             json={"teacher_id": seed_data["teacher"].id},
             headers=h,
         )
         assert r.status_code == 200
-        # delete
+
         r = client.delete(f"/api/v1/assignments/{new_id}", headers=h)
         assert r.status_code == 200
 

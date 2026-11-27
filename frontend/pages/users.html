@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quản lý người dùng — Hệ thống Quản lý Học sinh</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/tokens.css">
+<link rel="stylesheet" href="/assets/css/base.css">
+<link rel="stylesheet" href="/assets/css/layout.css">
+<link rel="stylesheet" href="/assets/css/components.css">
+<link rel="stylesheet" href="/assets/css/pages.css">
+</head>
+<body>
+
+<div class="app-shell" id="app-shell"></div>
+
+<div class="toast-container" role="status" aria-live="polite"></div>
+
+<!-- ==================== Modal tạo tài khoản ==================== -->
+<dialog class="modal" id="modal-user">
+  <form method="dialog" class="modal__dialog" id="form-user">
+    <header class="modal__header">
+      <div>
+        <h2 class="modal__title" id="user-modal-title">Cấp tài khoản mới</h2>
+        <p class="modal__subtitle" id="user-modal-subtitle"></p>
+      </div>
+      <button type="button" class="btn btn--icon" data-close aria-label="Đóng">✕</button>
+    </header>
+    <div class="modal__body">
+      <div id="user-alert" class="hidden" style="margin-bottom:16px"></div>
+      <div class="form-grid">
+        <div class="field">
+          <label class="field__label" for="user-username">
+            Tên đăng nhập <span class="field__required">*</span>
+          </label>
+          <input class="field__input" id="user-username" name="username"
+                 placeholder="gv_nguyenvanb" required>
+        </div>
+        <div class="field">
+          <label class="field__label" for="user-name">
+            Họ và tên <span class="field__required">*</span>
+          </label>
+          <input class="field__input" id="user-name" name="full_name"
+                 placeholder="Nguyễn Văn B" required>
+        </div>
+        <div class="field">
+          <label class="field__label" for="user-email">
+            Email <span class="field__required">*</span>
+          </label>
+          <input class="field__input" id="user-email" name="email"
+                 type="email" placeholder="vanb.nguyen@truongthpt.edu.vn" required>
+        </div>
+        <div class="field">
+          <label class="field__label" for="user-role">
+            Vai trò <span class="field__required">*</span>
+          </label>
+          <div class="field__select-wrap">
+            <select class="field__select" id="user-role" name="role" required>
+              <option value="STAFF">Nhân viên</option>
+              <option value="TEACHER">Giáo viên</option>
+              <option value="ACADEMIC">Giáo vụ</option>
+            </select>
+            <span class="field__chevron">▾</span>
+          </div>
+        </div>
+        <div class="field field--full">
+          <label class="field__label" for="user-phone">Số điện thoại</label>
+          <input class="field__input" id="user-phone" name="phone"
+                 placeholder="0911223344">
+        </div>
+      </div>
+    </div>
+    <footer class="modal__footer">
+      <button type="button" class="btn btn--secondary" data-close>Huỷ</button>
+      <button type="submit" class="btn btn--primary" id="btn-user">Cấp tài khoản</button>
+    </footer>
+  </form>
+</dialog>
+
+<!-- ==================== Modal đổi vai trò ==================== -->
+<dialog class="modal" id="modal-role">
+  <form method="dialog" class="modal__dialog" id="form-role">
+    <header class="modal__header">
+      <div>
+        <h2 class="modal__title">Đổi vai trò</h2>
+        <p class="modal__subtitle" id="role-subtitle"></p>
+      </div>
+      <button type="button" class="btn btn--icon" data-close aria-label="Đóng">✕</button>
+    </header>
+    <div class="modal__body">
+      <div id="role-alert" class="hidden" style="margin-bottom:16px"></div>
+      <div class="alert alert--warning" style="margin-bottom:16px">
+        <span class="alert__icon" data-warn-icon></span>
+        <div class="alert__body">
+          <div class="alert__message">
+            Hệ thống chỉ giữ 1 tài khoản Giáo vụ hoạt động. Hạ cấp hoặc khoá tài khoản
+            Giáo vụ cuối cùng sẽ bị từ chối.
+          </div>
+        </div>
+      </div>
+      <div class="field">
+        <label class="field__label" for="role-select">
+          Vai trò mới <span class="field__required">*</span>
+        </label>
+        <div class="field__select-wrap">
+          <select class="field__select" id="role-select" name="role" required>
+            <option value="STAFF">Nhân viên</option>
+            <option value="TEACHER">Giáo viên</option>
+            <option value="ACADEMIC">Giáo vụ</option>
+          </select>
+          <span class="field__chevron">▾</span>
+        </div>
+      </div>
+    </div>
+    <footer class="modal__footer">
+      <button type="button" class="btn btn--secondary" data-close>Huỷ</button>
+      <button type="submit" class="btn btn--primary" id="btn-role">Đổi vai trò</button>
+    </footer>
+  </form>
+</dialog>
+
+<!-- ==================== Modal đặt lại mật khẩu ==================== -->
+<dialog class="modal" id="modal-password">
+  <form method="dialog" class="modal__dialog" id="form-password">
+    <header class="modal__header">
+      <div>
+        <h2 class="modal__title">Đặt lại mật khẩu</h2>
+        <p class="modal__subtitle" id="password-subtitle"></p>
+      </div>
+      <button type="button" class="btn btn--icon" data-close aria-label="Đóng">✕</button>
+    </header>
+    <div class="modal__body">
+      <div id="password-alert" class="hidden" style="margin-bottom:16px"></div>
+      <div class="field">
+        <label class="field__label" for="new-password">
+          Mật khẩu mới <span class="field__required">*</span>
+        </label>
+        <input class="field__input" id="new-password" name="new_password"
+               type="text" placeholder="DoiMK@123" required>
+        <p class="field__hint">
+          Người dùng sẽ được yêu cầu đổi mật khẩu ở lần đăng nhập kế tiếp.
+        </p>
+      </div>
+    </div>
+    <footer class="modal__footer">
+      <button type="button" class="btn btn--secondary" data-close>Huỷ</button>
+      <button type="submit" class="btn btn--primary" id="btn-password">Đặt lại</button>
+    </footer>
+  </form>
+</dialog>
+
+<script type="module" src="/assets/js/pages/users.js"></script>
+</body>
+</html>

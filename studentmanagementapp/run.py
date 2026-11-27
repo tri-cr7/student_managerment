@@ -1,4 +1,3 @@
-"""Dev entry: venv/bin/python run.py (port 5001)."""
 import os
 
 from studentapp import create_app
@@ -31,4 +30,5 @@ if __name__ == "__main__":
             db.session.add(admin)
             print(f"[seed] Da tao admin goc '{seed_user}'. Doi MK ngay sau deploy!")
         db.session.commit()
-    app.run(debug=True, port=5001)
+    port = int(os.environ.get("PORT", 5001))
+    app.run(debug=True, port=port)

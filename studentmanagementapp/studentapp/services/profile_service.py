@@ -1,22 +1,17 @@
-"""SERVICE profile SD02."""
 from datetime import datetime
 
-from flask import request as freq
-
 from studentapp.extensions import db
-from studentapp.models.audit_log import AuditLog
 from studentapp.models.password_otp import OtpPurpose
 from studentapp.repositories import user_repository
 from studentapp.exceptions import NotFoundError, ValidationError, AuthenticationError
 from studentapp.utils.validators import is_strong_password
-
+from studentapp.utils.audit import client_ip, write_audit
 
 def _get_user(user_id):
     u = user_repository.get_by_id(user_id)
     if u is None:
         raise NotFoundError("Không tìm thấy người dùng.")
     return u
-
 
 def _check_new_password(u, new: str, confirm: str):
     ok, msg = is_strong_password(new)
@@ -27,7 +22,6 @@ def _check_new_password(u, new: str, confirm: str):
     if u.check_password(new):
         raise ValidationError("Mật khẩu mới phải khác mật khẩu cũ.")
 
-
 def _notify_password_changed(u, ip):
     try:
         from studentapp.services import mail_service
@@ -37,17 +31,15 @@ def _notify_password_changed(u, ip):
     except Exception:
         pass
 
-
 def _apply_new_password(u, new: str, action: str):
     u.set_password(new)
     u.failed_attempts = 0
     u.must_change_password = False
-    ip = freq.remote_addr if freq else None
-    db.session.add(AuditLog(user_id=u.id, action=action, ip_address=ip))
+    ip = client_ip()
+    write_audit(u.id, action, ip=ip)
     db.session.commit()
     _notify_password_changed(u, ip)
     return True
-
 
 def request_change_otp(user_id, payload: dict):
     from studentapp.services import otp_service
@@ -64,7 +56,6 @@ def request_change_otp(user_id, payload: dict):
     _code, status = otp_service.request_otp(u, OtpPurpose.CHANGE)
     return status
 
-
 def confirm_change_password(user_id, payload: dict):
     from studentapp.services import otp_service
 
@@ -75,7 +66,6 @@ def confirm_change_password(user_id, payload: dict):
     _check_new_password(u, new, confirm)
     otp_service.verify_and_consume(u.id, OtpPurpose.CHANGE, code)
     return _apply_new_password(u, new, "CHANGE_PASSWORD")
-
 
 def change_password(user_id, payload: dict):
     u = _get_user(user_id)

@@ -1,10 +1,8 @@
-"""REPOSITORY classes — Thao tác DB cho Khối lớp và Lớp học."""
 from studentapp.extensions import db
 from studentapp.models import ClassEnrollment, EnrollmentStatusEnum
 from studentapp.models.grade import Grade
 from studentapp.models.class_room import Class
 from studentapp.models.student import Student
-
 
 class ClassRepository:
 
@@ -26,7 +24,7 @@ class ClassRepository:
 
     @staticmethod
     def get_students_in_class(class_id):
-        # Thay đổi từ Student sang truy vấn qua ClassEnrollment
+
         active_enrollments = ClassEnrollment.query.filter_by(
             class_id=class_id,
             status=EnrollmentStatusEnum.DANG_HOC

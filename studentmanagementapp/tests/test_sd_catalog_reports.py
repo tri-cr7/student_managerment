@@ -1,6 +1,4 @@
-"""Test cụm cuối Giáo vụ: SD21 rules, SD22 subjects, SD20 reports, SD15 audit, SD26 years, SD27 homeroom."""
 from studentapp.services import catalog_service, report_service
-
 
 class TestRules:
     def test_list_and_get(self, app, seed_data):
@@ -53,7 +51,6 @@ class TestRules:
                                         "rule_value": "43"}]}, headers=h)
         assert r.status_code == 200
 
-
 class TestSubjects:
     def test_crud_roundtrip(self, app, seed_data):
         s = catalog_service.create_subject(
@@ -99,10 +96,9 @@ class TestSubjects:
         nid = r.get_json()["data"]["id"]
         r = client.delete(f"/api/v1/subjects/{nid}", headers=h)
         assert r.status_code == 200
-        # xóa môn đang dạy → 422
+
         r = client.delete(f"/api/v1/subjects/{seed_data['subject'].id}", headers=h)
         assert r.status_code == 422
-
 
 class TestYearsSemestersHomeroom:
     def test_year_current_singleton(self, app, seed_data):
@@ -116,14 +112,17 @@ class TestYearsSemestersHomeroom:
         assert AcademicYear.query.filter_by(is_current=True).count() == 1
 
     def test_semester_crud(self, app, seed_data):
-        s = catalog_service.create_semester(
-            {"semester_name": "HK2",
-             "academic_year_id": seed_data["academic_year"].id, "factor": 2},
-            actor_id=seed_data["academic"].id)
-        assert s["semester_name"] == "HK2"
+
+        from studentapp.models.semester import Semester
+        year_id = seed_data["academic_year"].id
+        rows = Semester.query.filter_by(academic_year_id=year_id).all()
+        assert {s.semester_name for s in rows} == {"HK1", "HK2"}
+        hk2 = next(s for s in rows if s.semester_name == "HK2")
         cur = catalog_service.set_current_semester(
-            s["id"], actor_id=seed_data["academic"].id)
+            hk2.id, actor_id=seed_data["academic"].id)
         assert cur["is_current"] is True
+
+        assert Semester.query.filter_by(is_current=True).count() == 1
 
     def test_homeroom(self, app, seed_data):
         out = catalog_service.set_homeroom(
@@ -159,7 +158,6 @@ class TestYearsSemestersHomeroom:
         r = client.get("/api/v1/grades", headers=h)
         assert r.status_code == 200
 
-
 class TestReportsAudit:
     def _seed_official(self, seed_data):
         from studentapp.extensions import db
@@ -184,12 +182,11 @@ class TestReportsAudit:
         out = report_service.subject_summary(seed_data["subject"].id,
                                              seed_data["semester"].id)
         assert out["passing_threshold"] == 5.0
-        # Cả 2 lớp 10A1/10B1 đều có phân công cùng môn → summary có 2 dòng;
-        # chỉ 10A1 có học sinh (3 HS đều đạt), 10B1 sĩ số 0.
+
         assert len(out["summary"]) == 2
         row = next(r for r in out["summary"] if r["class_name"] == "10A1")
         assert row["class_size"] == 3
-        # HS1: ĐTB ~ (4+8+8.5*3)/5 = 6.9 đạt; HS2, HS3 đạt → 3/3
+
         assert row["passed_count"] == 3
         assert row["pass_rate"] == 100.0
 

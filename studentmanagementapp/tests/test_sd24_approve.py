@@ -1,16 +1,7 @@
-"""Test SD24 — Duyệt & chốt bảng điểm (Giáo vụ).
-
-Bao phủ:
-* Service: approve → scores is_draft=FALSE + assignment is_locked=TRUE cùng
-  transaction, audit + outbox được ghi; reject → giữ nháp + bắt buộc lý do;
-  chỉ xử lý đơn PENDING (đơn đã duyệt/từ chối/hủy → 409).
-* API: 401 thiếu token, 403 sai role, ACADEMIC duyệt/từ chối đủ vòng.
-"""
 import pytest
 
 from studentapp.models.score_submission import SubmissionStatusEnum
 from studentapp.services import score_service, submission_service
-
 
 def _fill_all_scores(seed_data, value=8.0):
     rows = []
@@ -27,13 +18,11 @@ def _fill_all_scores(seed_data, value=8.0):
         seed_data["teacher"].id,
     )
 
-
 def _make_pending(seed_data):
     _fill_all_scores(seed_data)
     return score_service.create_submission(
         {"assignment_id": seed_data["assignment"].id}, seed_data["teacher"].id
     )
-
 
 class TestApproveService:
     def test_approve_locks_and_finalizes(self, app, seed_data):
@@ -44,7 +33,7 @@ class TestApproveService:
         )
         assert out["status"] == SubmissionStatusEnum.APPROVED
         assert out["is_locked"] is True
-        # scores → chính thức
+
         from studentapp.repositories import score_repository
 
         rows = score_repository.list_by_assignment(
@@ -52,7 +41,7 @@ class TestApproveService:
         )
         assert len(rows) == 3
         assert all(r.is_draft is False for r in rows)
-        # không còn bản nháp
+
         assert score_repository.list_by_assignment(
             seed_data["assignment"].id, draft_only=True
         ) == []
@@ -115,7 +104,6 @@ class TestApproveService:
                 reviewer_id=seed_data["academic"].id,
             )
 
-
 class TestApproveEndpoints:
     def test_requires_authentication(self, app, client, seed_data):
         assert client.get("/api/v1/score-submissions").status_code == 401
@@ -145,7 +133,7 @@ class TestApproveEndpoints:
         )
         assert r.status_code == 200, r.get_json()
         assert r.get_json()["data"]["status"] == "APPROVED"
-        # duyệt lần 2 → 409
+
         r = client.put(
             f"/api/v1/score-submissions/{sub['submission_id']}/approve",
             json={}, headers=h,
@@ -159,7 +147,7 @@ class TestApproveEndpoints:
             f"/api/v1/score-submissions/{sub['submission_id']}/reject",
             json={}, headers=h,
         )
-        assert r.status_code == 400  # thiếu lý do
+        assert r.status_code == 400
         r = client.put(
             f"/api/v1/score-submissions/{sub['submission_id']}/reject",
             json={"review_note": "Thiếu điểm"}, headers=h,

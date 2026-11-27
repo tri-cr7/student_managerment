@@ -1,7 +1,3 @@
-"""SERVICE catalog — SD21 quy định, SD22 môn học, SD26 năm học/kỳ, SD27 GVCN.
-
-Tất cả validate tập trung ở service để controller mỏng.
-"""
 from studentapp.exceptions import (
     BusinessRuleError,
     DuplicateError,
@@ -9,13 +5,8 @@ from studentapp.exceptions import (
     ValidationError,
 )
 from studentapp.extensions import db
+from studentapp.services.class_service import get_max_class_size
 
-
-# --------------------------------------------------------------------------- #
-# SD21 — Quy định (system_rules)
-# --------------------------------------------------------------------------- #
-
-#: Quy tắc validate logic đã chốt (§4 YC5).
 _RULE_CONSTRAINTS = (
     "MIN_AGE < MAX_AGE",
     "MAX_CLASS_SIZE > 0",
@@ -25,12 +16,8 @@ _RULE_CONSTRAINTS = (
     "MAX_LOGIN_ATTEMPTS > 0",
 )
 
-
 def _validate_rules_map(values: dict):
-    """Kiểm tra tính logic của bộ quy chế sau khi áp giá trị mới.
 
-    :raises BusinessRuleError: 422 khi phi logic.
-    """
     def num(key, default=0):
         try:
             return float(values.get(key, default))
@@ -58,22 +45,15 @@ def _validate_rules_map(values: dict):
         raise BusinessRuleError("MAX_LOGIN_ATTEMPTS phải lớn hơn 0.",
                                 error="INVALID_RULE_LOGIC")
 
-
 def _current_rules_map():
     from studentapp.models.system_rule import SystemRule
 
     return {r.rule_key: r.rule_value for r in SystemRule.query.all()}
 
-
 def _write_audit(user_id, action, details):
-    from studentapp.models.audit_log import AuditLog
+    from studentapp.utils.audit import write_audit
 
-    try:
-        uid = int(user_id) if user_id is not None else None
-    except (TypeError, ValueError):
-        uid = None
-    db.session.add(AuditLog(user_id=uid, action=action, details=details))
-
+    write_audit(user_id, action, details)
 
 def list_rules():
     from studentapp.repositories import system_rule_repository
@@ -84,7 +64,6 @@ def list_rules():
         for r in system_rule_repository.list_all()
     ]
 
-
 def get_rule(rule_key):
     from studentapp.repositories import system_rule_repository
 
@@ -93,7 +72,6 @@ def get_rule(rule_key):
         raise NotFoundError(f"Không tìm thấy quy định {rule_key}.")
     return {"rule_key": r.rule_key, "rule_value": r.rule_value,
             "data_type": str(r.data_type), "description": r.description}
-
 
 def _coerce_value(rule, raw):
     text = str(raw).strip()
@@ -113,7 +91,6 @@ def _coerce_value(rule, raw):
             raise BusinessRuleError(f"Giá trị {rule.rule_key} phải là số.",
                                     error="INVALID_RULE_VALUE")
     return text
-
 
 def update_rule(rule_key, rule_value, description=None, actor_id=None):
     from studentapp.repositories import system_rule_repository
@@ -136,7 +113,6 @@ def update_rule(rule_key, rule_value, description=None, actor_id=None):
     return {"rule_key": rule.rule_key, "rule_value": rule.rule_value,
             "new_value": rule.rule_value}
 
-
 def bulk_update_rules(items, actor_id=None):
     from studentapp.repositories import system_rule_repository
 
@@ -154,7 +130,7 @@ def bulk_update_rules(items, actor_id=None):
     merged = _current_rules_map()
     for rule, value in cleaned:
         merged[rule.rule_key] = value
-    _validate_rules_map(merged)  # validate toàn bộ trước khi commit
+    _validate_rules_map(merged)
     for rule, value in cleaned:
         rule.rule_value = value
         rule.updated_by = actor_id
@@ -164,16 +140,10 @@ def bulk_update_rules(items, actor_id=None):
     db.session.commit()
     return {"updated": [r.rule_key for r, _ in cleaned]}
 
-
-# --------------------------------------------------------------------------- #
-# SD22 — Môn học
-# --------------------------------------------------------------------------- #
-
 def _subject_to_dict(s):
     item = s.to_dict()
     item["grade_name"] = s.grade.grade_name if s.grade else None
     return item
-
 
 def list_subjects(keyword=None, grade_id=None, is_active=None):
     from studentapp.models.subject import Subject
@@ -196,7 +166,6 @@ def list_subjects(keyword=None, grade_id=None, is_active=None):
             q = q.filter_by(is_active=False)
     return [_subject_to_dict(s) for s in q.order_by(Subject.id).all()]
 
-
 def get_subject(subject_id):
     from studentapp.models.subject import Subject
 
@@ -209,14 +178,12 @@ def get_subject(subject_id):
         raise NotFoundError("Không tìm thấy môn học.")
     return _subject_to_dict(s)
 
-
 def list_subjects_by_grade(grade_id, is_active=None):
     try:
         gid = int(grade_id)
     except (TypeError, ValueError):
         raise NotFoundError("Không tìm thấy khối lớp.")
     return list_subjects(grade_id=gid, is_active=is_active)
-
 
 def create_subject(payload, actor_id=None):
     from studentapp.models.grade import Grade
@@ -246,7 +213,6 @@ def create_subject(payload, actor_id=None):
     _write_audit(actor_id, "CREATE_SUBJECT", {"subject_id": s.id, "code": code})
     db.session.commit()
     return _subject_to_dict(s)
-
 
 def update_subject(subject_id, payload, actor_id=None):
     from studentapp.models.subject import Subject
@@ -285,7 +251,6 @@ def update_subject(subject_id, payload, actor_id=None):
     db.session.commit()
     return _subject_to_dict(s)
 
-
 def delete_subject(subject_id, actor_id=None):
     from studentapp.models.subject import Subject
     from studentapp.models.teaching_assignment import TeachingAssignment
@@ -308,17 +273,11 @@ def delete_subject(subject_id, actor_id=None):
     db.session.commit()
     return snapshot
 
-
-# --------------------------------------------------------------------------- #
-# SD26 — Năm học & học kỳ
-# --------------------------------------------------------------------------- #
-
 def list_academic_years():
     from studentapp.models.academic_year import AcademicYear
 
     return [y.to_dict() for y in AcademicYear.query.order_by(
         AcademicYear.start_year.desc()).all()]
-
 
 def get_current_year():
     from studentapp.models.academic_year import AcademicYear
@@ -328,10 +287,25 @@ def get_current_year():
         raise NotFoundError("Chưa thiết lập năm học hiện hành.")
     return y.to_dict()
 
+def _parse_date(value):
+
+    if value in (None, ""):
+        return None
+    if hasattr(value, "year") and hasattr(value, "month"):
+        return value
+    from datetime import date as _date
+
+    try:
+        return _date.fromisoformat(str(value).strip())
+    except (TypeError, ValueError):
+        raise ValidationError("Ngày phải có định dạng YYYY-MM-DD.")
 
 def create_academic_year(payload, actor_id=None):
-    from studentapp.models.academic_year import AcademicYear
 
+    from studentapp.models.academic_year import AcademicYear
+    from studentapp.models.semester import Semester
+
+    payload = payload or {}
     name = (payload.get("year_name") or "").strip()
     if not name:
         raise ValidationError("Thiếu year_name (VD: 2026-2027).")
@@ -342,20 +316,45 @@ def create_academic_year(payload, actor_id=None):
         end = int(payload.get("end_year", name.split("-")[-1]))
     except (TypeError, ValueError):
         raise ValidationError("start_year/end_year không hợp lệ.")
+    if end < start:
+        raise ValidationError("end_year không được nhỏ hơn start_year.")
+
+    start_date = _parse_date(payload.get("start_date"))
+    end_date = _parse_date(payload.get("end_date"))
+    if start_date and end_date and end_date < start_date:
+        raise ValidationError("end_date không được nhỏ hơn start_date.")
+
+    is_current = bool(payload.get("is_current", False))
     y = AcademicYear(year_name=name, start_year=start, end_year=end,
-                     is_current=bool(payload.get("is_current", False)))
+                     start_date=start_date, end_date=end_date,
+                     is_current=is_current)
     db.session.add(y)
     db.session.flush()
-    if y.is_current:
+
+    for sem_name in Semester.SEMESTER_NAMES:
+        db.session.add(Semester(
+            semester_name=sem_name,
+            academic_year_id=y.id,
+            factor=Semester.factor_for(sem_name),
+            is_current=False,
+        ))
+    db.session.flush()
+
+    if is_current:
         AcademicYear.query.filter(AcademicYear.id != y.id).update(
             {AcademicYear.is_current: False}, synchronize_session=False)
-    _write_audit(actor_id, "CREATE_ACADEMIC_YEAR", {"year_id": y.id})
+
+        _set_current_semester_in_year(y.id, "HK1")
+    _write_audit(actor_id, "CREATE_ACADEMIC_YEAR", {
+        "year_id": y.id, "year_name": name,
+    })
     db.session.commit()
     return y.to_dict()
 
-
 def set_current_year(year_id, actor_id=None):
+
     from studentapp.models.academic_year import AcademicYear
+    from studentapp.models.semester import Semester
 
     try:
         yid = int(year_id)
@@ -368,12 +367,30 @@ def set_current_year(year_id, actor_id=None):
                               synchronize_session=False)
     y.is_current = True
     db.session.add(y)
+
+    Semester.query.filter_by(is_current=True).update(
+        {Semester.is_current: False}, synchronize_session=False)
+    _set_current_semester_in_year(y.id, "HK1")
     _write_audit(actor_id, "SET_CURRENT_YEAR", {"year_id": y.id})
     db.session.commit()
     return y.to_dict()
 
+def _set_current_semester_in_year(academic_year_id, semester_name):
+
+    from studentapp.models.semester import Semester
+
+    Semester.query.filter_by(academic_year_id=academic_year_id).update(
+        {Semester.is_current: False}, synchronize_session=False)
+    row = Semester.query.filter_by(
+        academic_year_id=academic_year_id, semester_name=semester_name).first()
+    if row is None:
+        return None
+    row.is_current = True
+    db.session.add(row)
+    return row
 
 def list_semesters(academic_year_id=None):
+
     from studentapp.models.semester import Semester
 
     q = Semester.query
@@ -382,51 +399,74 @@ def list_semesters(academic_year_id=None):
             q = q.filter_by(academic_year_id=int(academic_year_id))
         except (TypeError, ValueError):
             raise ValidationError("academic_year_id không hợp lệ.")
-    return [s.to_dict() for s in q.order_by(Semester.id).all()]
+    return [s.to_dict() for s in q.order_by(
+        Semester.academic_year_id.asc(), Semester.factor.asc()).all()]
 
+def get_current_semester(academic_year_id=None):
 
-def get_current_semester():
+    from studentapp.models.academic_year import AcademicYear
     from studentapp.models.semester import Semester
 
-    s = Semester.query.filter_by(is_current=True).first()
+    if academic_year_id not in (None, ""):
+        try:
+            yid = int(academic_year_id)
+        except (TypeError, ValueError):
+            raise ValidationError("academic_year_id không hợp lệ.")
+        if db.session.get(AcademicYear, yid) is None:
+            raise NotFoundError("Không tìm thấy năm học.")
+        q = Semester.query.filter_by(academic_year_id=yid)
+    else:
+        year = AcademicYear.query.filter_by(is_current=True).first()
+        if year is None:
+            raise NotFoundError("Chưa thiết lập năm học hiện hành.")
+        q = Semester.query.filter_by(academic_year_id=year.id)
+
+    s = q.filter_by(is_current=True).order_by(Semester.factor.asc()).first()
     if s is None:
         raise NotFoundError("Chưa thiết lập học kỳ hiện hành.")
     return s.to_dict()
 
-
 def create_semester(payload, actor_id=None):
+
     from studentapp.models.academic_year import AcademicYear
     from studentapp.models.semester import Semester
 
-    name = (payload.get("semester_name") or "").strip()
+    payload = payload or {}
+    name = (payload.get("semester_name") or "").strip().upper()
     if not name:
-        raise ValidationError("Thiếu semester_name (VD: HK1).")
+        raise ValidationError("Thiếu semester_name (chỉ nhận HK1 hoặc HK2).")
+    if name not in Semester.SEMESTER_NAMES:
+        raise ValidationError(
+            "Chỉ có 2 học kỳ trong một niên khóa: HK1 và HK2.",
+            error="INVALID_SEMESTER_NAME",
+        )
     try:
         year_id = int(payload.get("academic_year_id"))
     except (TypeError, ValueError):
         raise ValidationError("academic_year_id không hợp lệ.")
-    if db.session.get(AcademicYear, year_id) is None:
+    year = db.session.get(AcademicYear, year_id)
+    if year is None:
         raise NotFoundError("Không tìm thấy năm học.")
     if Semester.query.filter_by(
             academic_year_id=year_id, semester_name=name).first() is not None:
         raise DuplicateError(f"Học kỳ {name} đã tồn tại trong năm học này.")
-    try:
-        factor = int(payload.get("factor", 1))
-    except (TypeError, ValueError):
-        raise ValidationError("factor không hợp lệ.")
+
     s = Semester(semester_name=name, academic_year_id=year_id,
-                 factor=factor, is_current=bool(payload.get("is_current", False)))
+                 factor=Semester.factor_for(name),
+                 is_current=False)
     db.session.add(s)
     db.session.flush()
-    if s.is_current:
-        Semester.query.filter(Semester.id != s.id).update(
-            {Semester.is_current: False}, synchronize_session=False)
-    _write_audit(actor_id, "CREATE_SEMESTER", {"semester_id": s.id})
+
+    if bool(payload.get("is_current", False)):
+        _set_current_semester_in_year(year_id, name)
+    _write_audit(actor_id, "CREATE_SEMESTER", {
+        "semester_id": s.id, "semester_name": name, "academic_year_id": year_id,
+    })
     db.session.commit()
     return s.to_dict()
 
-
 def set_current_semester(semester_id, actor_id=None):
+
     from studentapp.models.semester import Semester
 
     try:
@@ -436,23 +476,59 @@ def set_current_semester(semester_id, actor_id=None):
     s = db.session.get(Semester, sid)
     if s is None:
         raise NotFoundError("Không tìm thấy học kỳ.")
-    Semester.query.update({Semester.is_current: False}, synchronize_session=False)
-    s.is_current = True
-    db.session.add(s)
-    _write_audit(actor_id, "SET_CURRENT_SEMESTER", {"semester_id": s.id})
+    _set_current_semester_in_year(s.academic_year_id, s.semester_name)
+    _write_audit(actor_id, "SET_CURRENT_SEMESTER", {
+        "semester_id": s.id, "semester_name": s.semester_name,
+        "academic_year_id": s.academic_year_id,
+    })
     db.session.commit()
     return s.to_dict()
-
-
-# --------------------------------------------------------------------------- #
-# SD27 — Lớp & GVCN (+ danh mục grades)
-# --------------------------------------------------------------------------- #
 
 def list_grades():
     from studentapp.models.grade import Grade
 
     return [g.to_dict() for g in Grade.query.order_by(Grade.grade_level).all()]
 
+def list_teachers():
+
+    from studentapp.models.user import User, UserRoleEnum
+
+    rows = (
+        User.query.filter(
+            User.role == UserRoleEnum.TEACHER,
+            User.is_active.is_(True),
+        )
+        .order_by(User.full_name)
+        .all()
+    )
+    return [
+        {
+            "id": u.id,
+            "full_name": u.full_name,
+            "username": u.username,
+            "email": u.email,
+        }
+        for u in rows
+    ]
+
+def _class_item(c):
+
+    from studentapp.repositories import class_enrollment_repository, user_repository
+
+    item = c.to_dict()
+    item["current_size_live"] = len(
+        class_enrollment_repository.list_student_ids_by_class(c.id))
+    item["max_size"] = get_max_class_size()
+    grade = getattr(c, "grade", None)
+    item["grade_name"] = grade.grade_name if grade else None
+    item["academic_year_name"] = (
+        c.academic_year.year_name if getattr(c, "academic_year", None) else None
+    )
+    item["homeroom_teacher_name"] = None
+    if c.homeroom_teacher_id:
+        t = user_repository.get_by_id(c.homeroom_teacher_id)
+        item["homeroom_teacher_name"] = t.full_name if t else None
+    return item
 
 def list_classes(page=1, limit=20, grade_id=None, academic_year_id=None):
     from studentapp.models.class_room import Class
@@ -478,22 +554,12 @@ def list_classes(page=1, limit=20, grade_id=None, academic_year_id=None):
     except (TypeError, ValueError):
         limit = 20
     rows = q.order_by(Class.id.desc()).offset((page - 1) * limit).limit(limit).all()
-    data = []
-    for c in rows:
-        from studentapp.repositories import class_enrollment_repository
-
-        size = len(class_enrollment_repository.list_student_ids_by_class(c.id))
-        item = c.to_dict()
-        item["current_size_live"] = size
-        item["homeroom_teacher_name"] = None
-        if c.homeroom_teacher_id:
-            from studentapp.repositories import user_repository
-
-            t = user_repository.get_by_id(c.homeroom_teacher_id)
-            item["homeroom_teacher_name"] = t.full_name if t else None
-        data.append(item)
-    return {"total": total, "page": page, "limit": limit, "data": data}
-
+    return {
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "data": [_class_item(c) for c in rows],
+    }
 
 def get_class(class_id):
     from studentapp.models.class_room import Class
@@ -507,17 +573,9 @@ def get_class(class_id):
         raise NotFoundError("Không tìm thấy lớp học.")
     return _class_detail(c)
 
-
 def _class_detail(c):
-    from studentapp.repositories import class_enrollment_repository, user_repository
 
-    item = c.to_dict()
-    item["current_size_live"] = len(
-        class_enrollment_repository.list_student_ids_by_class(c.id))
-    t = user_repository.get_by_id(c.homeroom_teacher_id) if c.homeroom_teacher_id else None
-    item["homeroom_teacher_name"] = t.full_name if t else None
-    return item
-
+    return _class_item(c)
 
 def set_homeroom(class_id, teacher_id, actor_id=None):
     from studentapp.models.class_room import Class
@@ -550,7 +608,6 @@ def set_homeroom(class_id, teacher_id, actor_id=None):
                  {"class_id": cid, "teacher_id": tid})
     db.session.commit()
     return _class_detail(c)
-
 
 def list_classes_by_grade(grade_id):
     from studentapp.models.class_room import Class

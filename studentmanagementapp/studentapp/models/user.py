@@ -1,4 +1,4 @@
-"""ENTITY users."""
+import datetime
 import enum
 import hashlib
 
@@ -8,12 +8,19 @@ from werkzeug.security import check_password_hash as wz_check
 
 from studentapp.extensions import db
 
+def _lock_duration_minutes() -> int:
+
+    try:
+        from studentapp.repositories import system_rule_repository as rules
+
+        return max(1, int(rules.get_int("LOCK_DURATION_MINUTES", 30)))
+    except Exception:
+        return 30
 
 class UserRoleEnum(enum.Enum):
     STAFF = "STAFF"
     TEACHER = "TEACHER"
     ACADEMIC = "ACADEMIC"
-
 
 class User(db.Model, UserMixin):
     __tablename__ = "users"
@@ -29,6 +36,8 @@ class User(db.Model, UserMixin):
     is_locked = db.Column(db.Boolean, nullable=False, default=False)
     is_active = db.Column(db.Boolean, nullable=False, default=True)
     must_change_password = db.Column(db.Boolean, nullable=False, default=False)
+
+    locked_at = db.Column(db.TIMESTAMP, nullable=True)
     created_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp())
     updated_at = db.Column(
         db.TIMESTAMP,
@@ -62,6 +71,35 @@ class User(db.Model, UserMixin):
     def get_id(self):
         return str(self.id)
 
+    @property
+    def lock_expires_at(self):
+
+        if not self.is_locked or not self.locked_at:
+            return None
+        try:
+            minutes = _lock_duration_minutes()
+        except Exception:
+            minutes = 30
+        return self.locked_at + datetime.timedelta(minutes=minutes)
+
+    @property
+    def is_lock_expired(self) -> bool:
+
+        if not self.is_locked:
+            return False
+        if not self.locked_at:
+            return False
+        return datetime.datetime.utcnow() >= self.lock_expires_at
+
+    def unlock_if_expired(self) -> bool:
+
+        if not self.is_lock_expired:
+            return False
+        self.is_locked = False
+        self.failed_attempts = 0
+        self.locked_at = None
+        return True
+
     def public_dict(self):
         return {
             "id": self.id,
@@ -73,6 +111,10 @@ class User(db.Model, UserMixin):
             "is_locked": bool(self.is_locked),
             "is_active": bool(self.is_active),
             "must_change_password": bool(self.must_change_password),
+            "locked_at": self.locked_at.isoformat() if self.locked_at else None,
+            "lock_expires_at": (
+                self.lock_expires_at.isoformat() if self.lock_expires_at else None
+            ),
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 

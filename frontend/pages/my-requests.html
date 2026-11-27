@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Đơn phúc khảo của tôi — Hệ thống Quản lý Học sinh</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/tokens.css">
+<link rel="stylesheet" href="/assets/css/base.css">
+<link rel="stylesheet" href="/assets/css/layout.css">
+<link rel="stylesheet" href="/assets/css/components.css">
+<link rel="stylesheet" href="/assets/css/pages.css">
+</head>
+<body>
+
+<div class="app-shell" id="app-shell"></div>
+
+<div class="toast-container" role="status" aria-live="polite"></div>
+
+<!-- ==================== Modal chi tiết đơn ==================== -->
+<dialog class="modal" id="modal-detail">
+  <div class="modal__dialog modal__dialog--960">
+    <header class="modal__header">
+      <div>
+        <h2 class="modal__title" id="detail-title">Chi tiết đơn phúc khảo</h2>
+        <p class="modal__subtitle" id="detail-subtitle"></p>
+      </div>
+      <button type="button" class="btn btn--icon" data-close aria-label="Đóng">✕</button>
+    </header>
+    <div class="modal__body">
+      <div id="detail-meta"></div>
+
+      <div class="field-group">
+        <div class="field-group__title">So sánh điểm</div>
+        <div class="table-wrap">
+          <table class="table diff-table">
+            <thead class="table__head">
+              <tr>
+                <th>Học sinh</th>
+                <th>Cột điểm</th>
+                <th class="table__cell--center">Điểm hiện tại</th>
+                <th class="table__cell--center">Điểm đề nghị</th>
+                <th>Lý do</th>
+                <th class="table__cell--center">Trạng thái</th>
+              </tr>
+            </thead>
+            <tbody id="detail-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <footer class="modal__footer">
+      <button type="button" class="btn btn--secondary" data-close>Đóng</button>
+    </footer>
+  </div>
+</dialog>
+
+<script type="module" src="/assets/js/pages/my-requests.js"></script>
+</body>
+</html>

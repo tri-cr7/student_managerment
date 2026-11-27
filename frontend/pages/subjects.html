@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Danh mục môn học — Hệ thống Quản lý Học sinh</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/tokens.css">
+<link rel="stylesheet" href="/assets/css/base.css">
+<link rel="stylesheet" href="/assets/css/layout.css">
+<link rel="stylesheet" href="/assets/css/components.css">
+<link rel="stylesheet" href="/assets/css/pages.css">
+</head>
+<body>
+
+<div class="app-shell" id="app-shell"></div>
+
+<div class="toast-container" role="status" aria-live="polite"></div>
+
+<!-- ==================== Modal thêm / sửa môn học ==================== -->
+<dialog class="modal" id="modal-subject">
+  <form method="dialog" class="modal__dialog" id="form-subject">
+    <header class="modal__header">
+      <div>
+        <h2 class="modal__title" id="subject-modal-title">Thêm môn học</h2>
+        <p class="modal__subtitle" id="subject-modal-subtitle"></p>
+      </div>
+      <button type="button" class="btn btn--icon" data-close aria-label="Đóng">✕</button>
+    </header>
+    <div class="modal__body">
+      <div id="subject-alert" class="hidden" style="margin-bottom:16px"></div>
+      <div class="form-grid">
+        <div class="field">
+          <label class="field__label" for="subject-code">
+            Mã môn <span class="field__required">*</span>
+          </label>
+          <input class="field__input" id="subject-code" name="subject_code"
+                 placeholder="TOAN10" required>
+        </div>
+        <div class="field">
+          <label class="field__label" for="subject-name">
+            Tên môn <span class="field__required">*</span>
+          </label>
+          <input class="field__input" id="subject-name" name="subject_name"
+                 placeholder="Toán học 10" required>
+        </div>
+        <div class="field">
+          <label class="field__label" for="subject-grade">
+            Khối lớp <span class="field__required">*</span>
+          </label>
+          <div class="field__select-wrap">
+            <select class="field__select" id="subject-grade" name="grade_id" required>
+              <option value="">-- Chọn khối --</option>
+            </select>
+            <span class="field__chevron">▾</span>
+          </div>
+        </div>
+        <div class="field">
+          <label class="field__label" for="subject-periods">Số tiết</label>
+          <input class="field__input" id="subject-periods" name="periods_count"
+                 type="number" min="0" max="400" placeholder="90">
+        </div>
+        <div class="field field--full">
+          <label class="field__checkbox">
+            <input type="checkbox" id="subject-active" name="is_active" checked>
+            Đang sử dụng môn học này
+          </label>
+        </div>
+      </div>
+    </div>
+    <footer class="modal__footer">
+      <button type="button" class="btn btn--secondary" data-close>Huỷ</button>
+      <button type="submit" class="btn btn--primary" id="btn-subject">Thêm môn học</button>
+    </footer>
+  </form>
+</dialog>
+
+<script type="module" src="/assets/js/pages/subjects.js"></script>
+</body>
+</html>

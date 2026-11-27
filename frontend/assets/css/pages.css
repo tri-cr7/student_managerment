@@ -1,0 +1,733 @@
+/* ==========================================================================
+   PAGES — Style riêng cho từng màn hình
+   ========================================================================== */
+
+/* ======================= STUDENT LIST / DETAIL ======================= */
+
+.student-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+
+.student-cell__name {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.student-profile-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+}
+
+.student-profile-head__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+  margin-top: var(--sp-1);
+  font-size: var(--text-caption-size);
+  color: var(--text-secondary);
+}
+
+.student-profile-head__sep {
+  color: var(--text-tertiary);
+}
+
+/* ======================= CLASS LIST ======================= */
+
+.class-size {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 110px;
+}
+
+.class-size__text {
+  font-size: var(--text-body-size);
+  font-variant-numeric: tabular-nums;
+}
+
+.class-size__text .class-size__max {
+  color: var(--text-secondary);
+}
+
+/* ======================= GRADEBOOK ======================= */
+
+.gradebook-wrap {
+  overflow-x: auto;
+  max-height: calc(100vh - 320px);
+}
+
+.gradebook {
+  width: max-content;
+  min-width: 100%;
+  font-size: var(--text-body-size);
+}
+
+.gradebook__head {
+  background: var(--bg-subtle);
+  position: sticky;
+  top: 0;
+  z-index: 3;
+}
+
+.gradebook__head th {
+  border-bottom: 1px solid var(--border-default);
+  border-right: 1px solid var(--border-subtle);
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 0;
+  height: 40px;
+  white-space: nowrap;
+}
+
+.gradebook__group {
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: center;
+  height: 36px !important;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.gradebook__col-label {
+  display: block;
+  padding: var(--sp-2) var(--sp-1);
+}
+
+.gradebook__body td {
+  border-bottom: 1px solid var(--border-subtle);
+  border-right: 1px solid var(--border-subtle);
+  height: 44px;
+  padding: 0 var(--sp-2);
+  text-align: center;
+}
+
+.gradebook__body tr:nth-child(even) {
+  background: #fcfcfd;
+}
+
+.gradebook__body tr:hover {
+  background: var(--bg-hover);
+}
+
+.gradebook__sticky {
+  position: sticky;
+  left: 0;
+  background: var(--bg-surface);
+  z-index: 2;
+  text-align: left !important;
+  padding-left: var(--sp-4) !important;
+  min-width: 220px;
+  border-right: 1px solid var(--border-default) !important;
+}
+
+.gradebook__body tr:nth-child(even) .gradebook__sticky {
+  background: #fcfcfd;
+}
+
+.gradebook__body tr:hover .gradebook__sticky {
+  background: var(--bg-hover);
+}
+
+.gradebook__head .gradebook__sticky {
+  z-index: 4;
+  background: var(--bg-subtle);
+}
+
+.gradebook__score-input {
+  width: 64px;
+  height: 32px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-size);
+  font-variant-numeric: tabular-nums;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.gradebook__score-input:focus {
+  outline: none;
+  border-color: var(--primary-600);
+  box-shadow: 0 0 0 3px var(--primary-ring);
+}
+
+.gradebook__score-input:disabled {
+  background: var(--bg-subtle);
+  color: var(--text-tertiary);
+  cursor: not-allowed;
+}
+
+.gradebook__score-input.is-error {
+  border-color: var(--danger);
+}
+
+.gradebook__score-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.gradebook__absent-btn {
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-sm);
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 600;
+  display: grid;
+  place-items: center;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.gradebook__absent-btn:hover {
+  background: var(--bg-subtle);
+  color: var(--text-primary);
+}
+
+.gradebook__cell-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-1);
+}
+
+.gradebook__avg {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-size);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.gradebook__avg--fail {
+  color: var(--danger);
+}
+.gradebook__avg--mid {
+  color: var(--warning);
+}
+.gradebook__avg--pass {
+  color: var(--success);
+}
+.gradebook__avg--none {
+  color: var(--text-tertiary);
+  font-weight: 400;
+}
+
+.gradebook__footer {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-4) var(--sp-5);
+  border-top: 1px solid var(--border-default);
+  flex-wrap: wrap;
+}
+
+/* ======================= SCORE DIFF ======================= */
+
+.diff-up {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.diff-down {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.diff-same {
+  background: var(--bg-subtle);
+}
+
+.diff-table td {
+  vertical-align: middle;
+}
+
+/* ======================= ENROLL MODAL ======================= */
+
+.enroll-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-4);
+  align-items: stretch;
+}
+
+.enroll-list {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.enroll-list__head {
+  padding: var(--sp-2) var(--sp-3);
+  border-bottom: 1px solid var(--border-default);
+  background: var(--bg-subtle);
+}
+
+.enroll-list__body {
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.enroll-list__item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  border-bottom: 1px solid var(--border-subtle);
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.enroll-list__item:last-child {
+  border-bottom: none;
+}
+
+.enroll-list__item:hover {
+  background: var(--bg-hover);
+}
+
+.enroll-list__item input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary-600);
+  cursor: pointer;
+}
+
+.enroll-list__item-meta {
+  min-width: 0;
+  flex: 1;
+}
+
+.enroll-list__item-name {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.enroll-target {
+  border-color: var(--primary-600);
+  background: var(--primary-50);
+}
+
+.enroll-target .enroll-list__head {
+  background: var(--primary-50);
+  border-bottom-color: var(--primary-600);
+}
+
+.enroll-transfer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.enroll-transfer__btn {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  display: grid;
+  place-items: center;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.enroll-transfer__btn:hover {
+  background: var(--primary-50);
+  border-color: var(--primary-600);
+  color: var(--primary-600);
+}
+
+/* ======================= DROPZONE ======================= */
+
+.dropzone {
+  border: 2px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  min-height: 180px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  padding: var(--sp-6);
+  text-align: center;
+  transition: border-color var(--transition-fast), background-color var(--transition-fast);
+  cursor: pointer;
+}
+
+.dropzone:hover,
+.dropzone.is-over {
+  border-color: var(--primary-600);
+  background: var(--primary-50);
+}
+
+.dropzone__icon {
+  width: 32px;
+  height: 32px;
+  color: var(--text-tertiary);
+}
+
+.dropzone__icon svg {
+  width: 32px;
+  height: 32px;
+  stroke-width: 1.25;
+}
+
+/* ======================= IMPORT RESULT TABS ======================= */
+
+.subtabs {
+  display: flex;
+  gap: var(--sp-5);
+  border-bottom: 1px solid var(--border-default);
+  margin-bottom: var(--sp-4);
+}
+
+.subtabs__item {
+  padding: var(--sp-2) 0;
+  margin-bottom: -1px;
+  font-size: var(--text-body-size);
+  font-weight: 500;
+  color: var(--text-secondary);
+  border-bottom: 2px solid transparent;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.subtabs__item.is-active {
+  color: var(--primary-600);
+  border-bottom-color: var(--primary-600);
+}
+
+/* ======================= KPI CARDS ======================= */
+
+.kpi-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-5);
+}
+
+.kpi-card__label {
+  font-size: var(--text-caption-size);
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.kpi-card__value {
+  margin-top: var(--sp-2);
+  font-size: 28px;
+  line-height: 32px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.kpi-card__hint {
+  margin-top: var(--sp-1);
+  font-size: var(--text-caption-size);
+  color: var(--text-tertiary);
+}
+
+/* ======================= CHART ======================= */
+
+.chart-box {
+  position: relative;
+  height: 260px;
+}
+
+.chart-legend {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+  margin-top: var(--sp-3);
+  font-size: var(--text-caption-size);
+  color: var(--text-secondary);
+}
+
+.chart-legend__item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chart-legend__swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+/* ======================= RULES ======================= */
+
+.rule-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+}
+
+.rule-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-4) var(--sp-5);
+  border-bottom: 1px solid var(--border-default);
+}
+
+.rule-card__body {
+  padding: var(--sp-5);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-4);
+}
+
+.rule-card__key {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+/* ======================= PROFILE ======================= */
+
+.profile-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-5);
+  flex-wrap: wrap;
+}
+
+.profile-head__meta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+/* ======================= CHANGE PASSWORD (FORCED) ======================= */
+
+.account-box {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  margin-bottom: var(--sp-6);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+}
+
+.account-box__avatar {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  border-radius: 50%;
+  background: var(--primary-50);
+  color: var(--primary-600);
+  font-weight: 600;
+  font-size: 14px;
+  display: grid;
+  place-items: center;
+}
+
+.account-box__meta {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.field__input-wrap {
+  position: relative;
+}
+
+.field__input-wrap .field__input {
+  padding-right: 40px;
+}
+
+.field__toggle {
+  position: absolute;
+  right: 3px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: none;
+}
+
+.pw-strength {
+  margin-top: var(--sp-2);
+}
+
+.pw-strength__bar {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--bg-subtle);
+  overflow: hidden;
+}
+
+.pw-strength__fill {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: 2px;
+  background: var(--danger);
+  transition: width var(--transition-base), background-color var(--transition-base);
+}
+
+.pw-strength__fill.is-weak {
+  width: 25%;
+  background: var(--danger);
+}
+
+.pw-strength__fill.is-fair {
+  width: 50%;
+  background: var(--warning);
+}
+
+.pw-strength__fill.is-good {
+  width: 75%;
+  background: var(--primary-600);
+}
+
+.pw-strength__fill.is-strong {
+  width: 100%;
+  background: var(--success);
+}
+
+.pw-strength__text {
+  margin-top: 5px;
+  font-size: var(--text-caption-size);
+  color: var(--text-secondary);
+}
+
+.pw-rules {
+  margin: var(--sp-2) 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 3px;
+}
+
+.pw-rules li {
+  position: relative;
+  padding-left: 20px;
+  font-size: var(--text-caption-size);
+  color: var(--text-tertiary);
+}
+
+.pw-rules li::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 5px;
+  width: 8px;
+  height: 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 2px;
+}
+
+.pw-rules li.is-ok {
+  color: var(--success);
+}
+
+.pw-rules li.is-ok::before {
+  background: var(--success);
+  border-color: var(--success);
+}
+
+/* ======================= ERROR PAGE ======================= */
+
+.error-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: var(--sp-6);
+  text-align: center;
+}
+
+.error-page__icon {
+  width: 48px;
+  height: 48px;
+  color: var(--text-tertiary);
+  margin: 0 auto var(--sp-4);
+}
+
+.error-page__icon svg {
+  width: 48px;
+  height: 48px;
+  stroke-width: 1.25;
+}
+
+.error-page__title {
+  font-size: var(--text-display-size);
+  font-weight: 600;
+}
+
+.error-page__message {
+  margin-top: var(--sp-2);
+  color: var(--text-secondary);
+  max-width: 420px;
+}
+
+.error-page__action {
+  margin-top: var(--sp-6);
+}
+
+/* ======================= RESPONSIVE ======================= */
+
+@media (max-width: 1023px) {
+  .enroll-cols {
+    grid-template-columns: 1fr;
+  }
+  .rule-card__body {
+    grid-template-columns: 1fr;
+  }
+  .kv-list {
+    grid-template-columns: 1fr;
+    gap: var(--sp-1);
+  }
+  .kv-list__key {
+    font-weight: 500;
+  }
+}
+
+@media (max-width: 767px) {
+  .form-grid,
+  .form-grid--label {
+    grid-template-columns: 1fr;
+  }
+  .field--full {
+    grid-column: auto;
+  }
+  .toolbar__search {
+    width: 100%;
+  }
+  .toolbar__select {
+    width: 100%;
+  }
+  .pagination {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .pagination__info {
+    width: 100%;
+    text-align: center;
+    margin-right: 0;
+  }
+  .otp-group {
+    justify-content: space-between;
+  }
+  .otp-input {
+    width: 40px;
+    height: 40px;
+  }
+}

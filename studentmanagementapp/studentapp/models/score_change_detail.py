@@ -1,10 +1,4 @@
-"""ENTITY score_change_details — Ô điểm được đề nghị sửa (đơn con), SD25/SD19.
-
-Trạng thái thật của từng ô nằm ở đây — Giáo vụ duyệt/từ chối **độc lập từng ô**
-(đơn lô có thể duyệt 15/20 ô, từ chối 5 ô).
-"""
 from studentapp.extensions import db
-
 
 class ChangeDetailStatusEnum:
     PENDING = "PENDING"
@@ -12,7 +6,6 @@ class ChangeDetailStatusEnum:
     REJECTED = "REJECTED"
 
     ALL = (PENDING, APPROVED, REJECTED)
-
 
 class ScoreChangeDetail(db.Model):
     __tablename__ = "score_change_details"

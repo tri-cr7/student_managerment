@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Duyệt bảng điểm — Hệ thống Quản lý Học sinh</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/tokens.css">
+<link rel="stylesheet" href="/assets/css/base.css">
+<link rel="stylesheet" href="/assets/css/layout.css">
+<link rel="stylesheet" href="/assets/css/components.css">
+<link rel="stylesheet" href="/assets/css/pages.css">
+</head>
+<body>
+
+<div class="app-shell" id="app-shell"></div>
+
+<div class="toast-container" role="status" aria-live="polite"></div>
+
+<!-- ==================== Modal xem & duyệt bảng điểm ==================== -->
+<dialog class="modal" id="modal-review">
+  <div class="modal__dialog modal__dialog--960">
+    <header class="modal__header">
+      <div>
+        <h2 class="modal__title" id="review-title">Xem & duyệt bảng điểm</h2>
+        <p class="modal__subtitle" id="review-subtitle"></p>
+      </div>
+      <button type="button" class="btn btn--icon" data-close aria-label="Đóng">✕</button>
+    </header>
+    <div class="modal__body">
+      <div id="review-meta"></div>
+
+      <div class="field-group">
+        <div class="field-group__title">Bảng điểm tạm (chỉ đọc)</div>
+        <div class="table-wrap" style="max-height:360px;overflow-y:auto">
+          <table class="table">
+            <thead class="table__head">
+              <tr>
+                <th>Mã HS</th>
+                <th>Học sinh</th>
+                <th class="table__cell--center">15p</th>
+                <th class="table__cell--center">1 tiết</th>
+                <th class="table__cell--center">Cuối kỳ</th>
+                <th class="table__cell--center">ĐTB</th>
+              </tr>
+            </thead>
+            <tbody id="review-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <div class="field-group__title">Quyết định</div>
+        <div class="field">
+          <label class="field__label" for="review-note">Lý do / ghi chú</label>
+          <textarea class="field__textarea" id="review-note"
+                    placeholder="Bắt buộc khi Từ chối. Ghi chú đối chiếu khi Duyệt."></textarea>
+          <p class="field__hint" id="review-note-hint">
+            Khi duyệt: điểm tạm chuyển thành điểm chính thức và bảng điểm bị khoá.
+          </p>
+        </div>
+      </div>
+    </div>
+    <footer class="modal__footer">
+      <button type="button" class="btn btn--danger-outline" id="btn-reject">
+        Từ chối
+      </button>
+      <button type="button" class="btn btn--primary" id="btn-approve">
+        Duyệt &amp; chốt
+      </button>
+    </footer>
+  </div>
+</dialog>
+
+<script type="module" src="/assets/js/pages/submissions.js"></script>
+</body>
+</html>
