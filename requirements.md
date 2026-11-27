@@ -8,7 +8,7 @@
 **Bối cảnh:** Quy trình quản lý thủ công qua sổ sách hoặc bảng tính Excel phân tán gây ra nhiều sai sót trong tính toán điểm số, khó khăn trong việc kiểm soát các quy định thay đổi (độ tuổi tiếp nhận, sĩ số lớp tối đa), mất nhiều thời gian tổng hợp báo cáo học vụ cho ban giám hiệu, và tiềm ẩn nguy cơ chỉnh sửa điểm trái phép khi không có cơ chế khóa bảng điểm và phê duyệt sửa điểm chặt chẽ.
 
 **Giải pháp:** Xây dựng ứng dụng web phân tầng theo kiến trúc MVC kết hợp nguyên lý Clean Code (Service - Repository Layer) và mô hình phân tích BCE (Boundary - Control - Entity). Hệ thống tích hợp bảng cấu hình quy chế linh hoạt (`system_rules`), cơ chế xác thực bảo mật đa tầng (chống Brute-force, phân quyền RBAC), quy trình phê duyệt sửa điểm bằng workflow, và hỗ trợ trực quan hóa dữ liệu bằng Chart.js trên nền tảng Python Flask và MySQL.
-
+ 
 ---
 
 ## 2. Công nghệ sử dụng
